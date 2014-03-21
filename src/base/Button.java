@@ -17,9 +17,9 @@ public class Button implements IHitTestObject
 
 	//IHitTestObject関連
 	/** 直接ヒットした場合のフラグ */
-	private boolean hitS;
-	/** //間接ヒットした場合のフラグ */
-	private boolean hitB;
+	private boolean hitSurfaceFlag;
+	/** 間接ヒットした場合のフラグ。今回はボタンの上に他のオブジェクトが乗っからない想定なので要らない。 */
+	//private boolean hitBackFlag;
 
 	/** //ボタンがクリックされたらtrue */
 	private boolean clicked;
@@ -43,7 +43,8 @@ public class Button implements IHitTestObject
 	public Button( Rectangle rect )
 	{
 		this.rect = new Rectangle( rect );
-		hitS = hitB = false;
+		hitSurfaceFlag = false;
+		//hitBackFlag = false;
 		clicked = false;
 	}
 
@@ -53,7 +54,7 @@ public class Button implements IHitTestObject
 		//フレーム毎にclickedフラグを初期化
 		clicked = false;
 		//カーソルがボタン上にあり、なおかつクリックされていたならフラグを立てる
-		if( hitS ){
+		if( hitSurfaceFlag ){
 			if( Input.getClicked( Input.MOUSE_BUTTON_LEFT ) ){
 				clicked = true;
 			}
@@ -65,7 +66,7 @@ public class Button implements IHitTestObject
 	{
 		Color prevColor = null;
 		//TODO:かんたんなハイライト処理 ボタンを画像にすることも要検討
-		if( hitS ){
+		if( hitSurfaceFlag ){
 			prevColor = g.getColor();
 			g.setColor( new Color( 0, 255, 255, 64 ) );
 			g.fillRect( rect.x, rect.y, rect.width, rect.height );
@@ -95,7 +96,7 @@ public class Button implements IHitTestObject
 	@Override
 	public void hitSurface()
 	{
-		hitS = true;
+		hitSurfaceFlag = true;
 	}
 
 	/**
@@ -104,7 +105,7 @@ public class Button implements IHitTestObject
 	@Override
 	public void hitBack()
 	{
-		hitB = true;
+		//hitBackFlag = true;
 	}
 
 	/**
@@ -113,7 +114,8 @@ public class Button implements IHitTestObject
 	@Override
 	public void notHit()
 	{
-		hitS = hitB = false;
+		hitSurfaceFlag = false;
+		//hitBackFlag = false;
 	}
 
 	public boolean isClicked()

@@ -72,9 +72,10 @@ public class ImageManager
 	 * @param filename ファイルパス
 	 * @param sizeX 1枚の幅
 	 * @param sizeY 1枚の高さ
+	 * @param numAllImages 全部で何枚切り出すか
 	 * @return 画像に紐付けられたハンドルを格納した配列
 	 */
-	public static int[] readDivImage( String filename, int sizeX, int sizeY )
+	public static int[] readDivImage( String filename, int sizeX, int sizeY, int numAllImages )
 	{
 		Integer[] cache = null;
 		int[] handles = null;
@@ -97,16 +98,29 @@ public class ImageManager
 		//分割したい画像のサイズから縦・横の分割数を割り出す
 		int divX = bf.getWidth() / sizeX;
 		int divY = bf.getHeight() / sizeY;
-		
-		handles = new int[ divX * divY ];
-		cache = new Integer[ divX * divY ];
+		//切り出せる枚数が指定した枚数より少ない場合、少ない方(実際に切り出せる枚数)に合わせる
+		if( divX * divY <= numAllImages ){
+			numAllImages = divX * divY;
+		}
+
+		handles = new int[ numAllImages ];
+		cache = new Integer[ numAllImages ];
+		int countDivided = 0;
+		boolean leave = false;
 		for( int i = 0; i < divY; ++i ){
 			for( int j = 0; j < divX; ++j ){
 				int handle = nextHandle++;
 				handles[ i * divX + j ] = handle;
 				images.put( new Integer( handle ), bf.getSubimage( j * sizeX, i * sizeY, sizeX, sizeY ) );
 				cache[ i ] = new Integer( handle );
+				++countDivided;
+				//切り出し予定数に達したら処理を打ち切る
+				if( countDivided >= numAllImages ){
+					leave = true;
+					break;
+				}
 			}
+			if( leave ) break;
 		}
 		handleCacheDiv.put( filename, cache );
 		return handles;
