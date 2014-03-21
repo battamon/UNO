@@ -45,6 +45,7 @@ public class MouseHitTestTask
 			if( obj.hitTest( mousePos ) ){
 				if( hitFirst ){
 					obj.hitSurface();
+					hitFirst = false;
 				}else{
 					obj.hitBack();
 				}
@@ -74,6 +75,24 @@ public class MouseHitTestTask
 		for( int i = objList.size() - 1; i >= 0; --i ){
 			objList.get( i ).draw( g );
 		}
+	}
+
+	/**
+	 * @return タスクに登録されているオブジェクト数を返す
+	 */
+	public int size()
+	{
+		return objList.size();
+	}
+
+	/**
+	 * タスクに登録されているオブジェクトを返す
+	 * @param index 取り出したいオブジェクトを示すインデックス
+	 * @return IHitTestObjectを実装したクラスのオブジェクト
+	 */
+	public IHitTestObject get( int index )
+	{
+		return objList.get( index );
 	}
 
 	/**

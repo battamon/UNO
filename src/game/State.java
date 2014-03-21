@@ -1,8 +1,8 @@
 package game;
 
-import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -25,6 +25,14 @@ public class State
 		GAMEOVER,
 		RESULT,
 	}
+	/** 画面サイズ */
+	public static final Point SCREEN_SIZE = new Point( 640, 480 );
+	/** ユーザーの手札の表示領域 */
+	public static final Rectangle USER_HANDS_AREA = new Rectangle( 80, 320, 480, 130);
+	/** 捨て場の表示領域 */
+	public static final Rectangle DISCARD_PILE_AREA = new Rectangle( 275, 175, 90, 130 );
+	/** メニューボタンの表示領域 */
+	public static final Rectangle BUTTON_MENU_AREA = new Rectangle( 570, 410, 60, 60 );
 
 	//ここからフィールド
 	/** 背景画像ハンドル */
@@ -38,13 +46,12 @@ public class State
 	private Stack< Card > discardPile = null;
 	/** 手札 */
 	private ArrayList< ArrayList< Card > > playerHands = null;
-
+	/** ユーザーの手札 */
+	private MouseHitTestTask userHands = null;
 	/** ゲーム進行フラグ */
 	private Phase phase = Phase.START;
 	/** 操作プレイヤー(ユーザー)番号 */
 	private int userID = 0;
-	/** ユーザーの手札 */
-	private MouseHitTestTask userHands;
 	/** 現在の手番のプレイヤー番号 */
 	private int playingPlayer = 0;
 
@@ -58,11 +65,16 @@ public class State
 	 */
 	public State()
 	{
-		userHands = new MouseHitTestTask(); 
+		userHands = new MouseHitTestTask();
 	}
 
 	public void update()
 	{
+		//当たり判定
+		userHands.hitTest();
+		//当たり判定オブジェクトの更新
+		userHands.update();
+
 		switch( phase ){
 			case START: //ゲーム開始前の準備
 				//手札を配る
@@ -76,6 +88,8 @@ public class State
 				//TODO:以降の処理を書く
 				break;
 		}
+		//手札のカード位置を調整
+		adjustUserHandsPosition();
 	}
 
 	public void draw( Graphics g )
@@ -125,7 +139,7 @@ public class State
 		createCards( deck, ConstGame.NUM_NUMBER_ZERO_CARDS, Card.Type.NUMBER, '0', Card.FLAGSET_COLORS_NUMBERS, new EventNull() );
 		//カード[1]～[9] 赤青緑黄 各2枚 計72枚
 		for( int i = 1; i < 10; ++i ){
-			createCards( deck, ConstGame.NUM_NUMBER_WITHOUT_ZERO_CARDS, Card.Type.NUMBER, (char)( (int)'1' + i ), Card.FLAGSET_COLORS_NUMBERS, new EventNull() );
+			createCards( deck, ConstGame.NUM_NUMBER_WITHOUT_ZERO_CARDS, Card.Type.NUMBER, (char)( (int)'0' + i ), Card.FLAGSET_COLORS_NUMBERS, new EventNull() );
 		}
 		//カード[Reverse]、[Skip]、[DrawTwo] 赤青緑黄 各2枚 計24枚
 		char[] symbols = { ConstGame.GLYPH_REVERSE, ConstGame.GLYPH_SKIP, ConstGame.GLYPH_DRAW_TWO };
@@ -174,13 +188,12 @@ public class State
 				playerHands.get( j ).add( deck.pop() );
 			}
 		}
+		//自分の手札は色ソートする
+		Collections.sort( playerHands.get( userID ), new CardColorComparator() );
 		//自分の手札はCardVisibleクラスでラップして保持
-		int i = 0;
 		for( Card card : playerHands.get( userID ) ){
-			//TODO:とりあえず座標適当に放り込む
-			CardVisible cv = new CardVisible( card );
-			cv.setPos( new Point( 80 + i++ * 60, 320 ) );
-			userHands.add( cv );
+			CardUserHand cuh = new CardUserHand( card );
+			userHands.add( cuh );
 		}
 	}
 
@@ -190,7 +203,37 @@ public class State
 	private void decideOrder()
 	{
 		//:TODOプレイヤーの番号で手番を決める。(適当な実装なのでちゃんと作り直そう。)
-		userID = (int)( Math.random() * numPlayers );
+		//userID = (int)( Math.random() * numPlayers );
+		userID = 0;
+	}
+
+	/**
+	 * 手札の表示位置を計算・調整
+	 */
+	private void adjustUserHandsPosition()
+	{
+		int num = userHands.size();
+		int x = USER_HANDS_AREA.x;
+		int y = USER_HANDS_AREA.y;
+		int widthMax = num * Card.WIDTH;	//カードを重ねずに並べたときの幅
+		//カードを重ねずに並べたときに表示領域からはみ出すかどうかを調べる
+		if( widthMax > USER_HANDS_AREA.width ){	//はみ出しそうなら・・・
+			//はみ出さないようにカードを重ねて表示しないといけないだけの幅を調べる
+			int overlapWidth = widthMax - USER_HANDS_AREA.width;	//重ねなければならない幅
+			//表示領域からはみ出さないようにoverlapWidthピクセル分をnum-1回分の重なりで均等に調整する
+			for( int i = 0; i < num - 1; ++i ){
+				( (CardVisible)userHands.get( i ) ).setPos( x, y );
+				x = USER_HANDS_AREA.x + Card.WIDTH * ( i + 1 ) - (int)( overlapWidth / (double)( num - 1 ) * ( i + 1 ) );	//次のカードのx座標を計算しておく
+			}
+			//最後の1枚の微調整
+			x = USER_HANDS_AREA.x + USER_HANDS_AREA.width - Card.WIDTH;
+			( (CardVisible)userHands.get( num - 1 ) ).setPos( x, y );
+		}else{	//そもそもはみ出さないなら左端から並べるだけ
+			for( int i = 0; i < num; ++i ){
+				( (CardVisible)userHands.get( i ) ).setPos( x, y );
+				x += Card.WIDTH;
+			}
+		}
 	}
 
 	/**
@@ -208,6 +251,16 @@ public class State
 	{
 		int nextPlayer = player;
 		//TODO: 操作プレイヤーの処理
+		//手札のクリック処理。左クリックで選択状態。右クリックで選択解除。
+		for( int i = 0; i < userHands.size(); ++i ){
+			CardUserHand cuh = (CardUserHand)userHands.get( i );
+			if( cuh.isLeftClicked() ){
+				cuh.setSelect( true );
+			}
+			if( cuh.isRightClicked() ){
+				cuh.setSelect( false );
+			}
+		}
 		return nextPlayer;
 	}
 

@@ -1,6 +1,7 @@
 package game;
 
 import java.util.EnumSet;
+import java.util.HashMap;
 
 import base.ImageManager;
 
@@ -26,7 +27,7 @@ public class Card
 		SYMBOL,
 	}
 	/** 数字と記号の並び順 */
-	private enum Order{
+	public enum Order{
 		ZERO,
 		ONE,
 		TWO,
@@ -40,6 +41,8 @@ public class Card
 		REVERSE,
 		SKIP,
 		DRAW_TWO,
+		WILD,
+		WILD_DRAW_FOUR,
 	}
 	private enum OrderW{
 		WILD,
@@ -53,8 +56,8 @@ public class Card
 	public static final EnumSet< Color > FLAGSET_COLORS_WILDS =
 			EnumSet.of( Color.BLACK );
 	/** カードの寸法 */
-	public static final int SIZE_X = 90;
-	public static final int SIZE_Y = 130;
+	public static final int WIDTH = 90;
+	public static final int HEIGHT = 130;
 	/** 各色に含まれる数字、記号カードの種類数(黒を除く ) */
 	private static final int NUM_KINDS_PER_COLOR = 13;	//0123456789rsdの13種
 	/** カードの種類の総数 */
@@ -62,7 +65,9 @@ public class Card
 
 	//static変数
 	/** カードの画像ハンドル */
-	private static final int[] hImage;
+	private static final int[] hImages;
+	/** glyph→Oder対応表 */
+	public static final HashMap< Character, Order > orderTable;
 
 	//ここからフィールド
 	/** 色 */
@@ -77,7 +82,25 @@ public class Card
 	//ここからメソッド
 	static
 	{
-		hImage = ImageManager.readDivImage( "resource/image/cards.png", SIZE_X, SIZE_Y, NUM_KINDS );
+		//画像読み込み
+		hImages = ImageManager.readDivImage( "resource/image/cards.png", WIDTH, HEIGHT, NUM_KINDS );
+		//対応表作成
+		orderTable = new HashMap< Character, Order >();
+		orderTable.put( new Character( (char)( '0' ) ), Order.ZERO );
+		orderTable.put( new Character( (char)( '1' ) ), Order.ONE );
+		orderTable.put( new Character( (char)( '2' ) ), Order.TWO );
+		orderTable.put( new Character( (char)( '3' ) ), Order.THREE );
+		orderTable.put( new Character( (char)( '4' ) ), Order.FOUR );
+		orderTable.put( new Character( (char)( '5' ) ), Order.FIVE );
+		orderTable.put( new Character( (char)( '6' ) ), Order.SIX );
+		orderTable.put( new Character( (char)( '7' ) ), Order.SEVEN );
+		orderTable.put( new Character( (char)( '8' ) ), Order.EIGHT );
+		orderTable.put( new Character( (char)( '9' ) ), Order.NINE );
+		orderTable.put( new Character( (char)( 'r' ) ), Order.REVERSE );
+		orderTable.put( new Character( (char)( 's' ) ), Order.SKIP );
+		orderTable.put( new Character( (char)( 'd' ) ), Order.DRAW_TWO );
+		orderTable.put( new Character( (char)( 'w' ) ), Order.WILD );
+		orderTable.put( new Character( (char)( 'f' ) ), Order.WILD_DRAW_FOUR );
 	}
 	/**
 	 * コンストラクタ。各属性を最初に与える。
@@ -112,30 +135,11 @@ public class Card
 	public int getImageHandle()
 	{
 		int handleIndex = NUM_KINDS_PER_COLOR * color.ordinal();
-		//シンボルカード系
-		if( type == Type.SYMBOL ){
-			switch( glyph ){
-				case 'r':	//リバース
-					handleIndex += Order.REVERSE.ordinal();
-					break;
-				case 's':	//スキップ
-					handleIndex +=  Order.SKIP.ordinal();
-					break;
-				case 'd':	//ドロー2
-					handleIndex += Order.DRAW_TWO.ordinal();
-					break;
-				case 'w':	//ワイルド
-					handleIndex += OrderW.WILD.ordinal();
-					break;
-				case 'f':	//ワイルドドローフォー
-					handleIndex += OrderW.WILD_DRAW_FOUR.ordinal();
-					break;
-			}
-		}else{
-			//数字
-			handleIndex += (int)( glyph - '0' );
+		handleIndex += orderTable.get( new Character( glyph ) ).ordinal();
+		if( color == Color.BLACK ){	//黒系カード
+			handleIndex -= NUM_KINDS_PER_COLOR;
 		}
-		return hImage[ handleIndex ];
+		return hImages[ handleIndex ];
 	}
 
 	//TODO:デバッグ用？
