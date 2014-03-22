@@ -4,7 +4,9 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Rectangle;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Stack;
 
 /**
@@ -66,6 +68,7 @@ public class Player
 	/** 山札からカードを1枚引く */
 	public void drawCard( Stack< Card > deck )
 	{
+		//FIXME 山札が無くなったときの処理を実装しよう
 		hands.add( deck.pop() );
 		Collections.sort( hands, new CardColorComparator() );
 	}
@@ -83,10 +86,58 @@ public class Player
 		return user;
 	}
 
+	/**
+	 * 手持ちのカードが1枚以上出せるかどうかを返す
+	 * @return 出せるならtrue
+	 */
+	public boolean isPlayable( Card discardTop )
+	{
+		List< Boolean > removables = isRemovableCards( discardTop );
+		for( Boolean b : removables ){
+			if( b.booleanValue() ) return true;
+		}
+		return false;
+	}
+
+	/**
+	 * 手札のカードが出せるかどうかをそれぞれ調べる
+	 * @param discardTop 捨て場に見えているカード
+	 * @return 出せるかどうかを示すリスト
+	 */
+	public List< Boolean > isRemovableCards( Card discardTop )
+	{
+		List< Boolean > removables = Arrays.asList( new Boolean[ hands.size() ] );
+		for( int i = 0; i < hands.size(); ++i ){
+			Card card = hands.get( i );
+			//出せるパターンならremovablesにtrueをセット
+			if( card.color == Card.Color.BLACK				//出すカードが黒
+					|| discardTop.color == Card.Color.BLACK	//出ているカードが黒
+					|| card.color == discardTop.color		//色が同じ
+					|| card.glyph == discardTop.glyph ){	//数字記号が同じ
+				removables.set( i, Boolean.TRUE );
+				continue;
+			}
+			//出せないならfalseをセット
+			removables.set( i, Boolean.FALSE );
+		}
+		return removables;
+	}
+
+	/**
+	 * カードを出す
+	 * @param index 手札のインデックス
+	 * @return 指定されたカード
+	 */
+	public Card removeHands( int index )
+	{
+		//TODO 1枚だけ返す実装だが、ローカルルールによっては複数枚返さないとならない場合も？
+		return hands.remove( index );
+	}
+
 	//デバッグ用
 	@Override
 	public String toString()
 	{
-		return ( order + 1 ) + " " + name + " ";
+		return "No." + ( order + 1 ) + " " + name + " " + hands.size() + "枚";
 	}
 }

@@ -22,7 +22,7 @@ public class MainPanel extends JPanel implements Runnable
 	//ループフラグ定数
 	public static final int LOOP_END = 0;
 	public static final int LOOP_CONTINUE = 1;
-	//画面サイズ(TODO:このまま固定にするかどうかは要検討)
+	//画面サイズ
 	private static final int WIDTH = 640;
 	private static final int HEIGHT = 480;
 	/** ゲームを動かすスレッド */
@@ -149,9 +149,9 @@ public class MainPanel extends JPanel implements Runnable
 			g = this.getGraphics();
 			if( ( g != null ) && ( image != null ) ){
 				g.drawImage( image, 0, 0, null );
-				//FPS表示(TODO:別に表示しなくてもいい)
-				g.setColor( Color.BLUE );
-				g.drawString( "FPS: " + fpsControl.toString(), 4, 16 );
+				//FPS表示(別に表示しなくてもいい)
+				//g.setColor( Color.BLUE );
+				//g.drawString( "FPS: " + fpsControl.toString(), 4, 16 );
 			}
 			Toolkit.getDefaultToolkit().sync();
 			g.dispose();

@@ -1,6 +1,8 @@
 package game;
 
 import java.awt.Graphics;
+import java.util.ArrayList;
+import java.util.List;
 
 import base.ImageManager;
 
@@ -35,5 +37,10 @@ public class CardUserHand extends CardVisible
 	public void setSelect( boolean b )
 	{
 		selected = b;
+	}
+
+	public boolean isSelected()
+	{
+		return selected;
 	}
 }

@@ -2,6 +2,8 @@ package game;
 
 import java.awt.Graphics;
 import java.awt.Rectangle;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Stack;
 
 import base.MouseHitTestTask;
@@ -32,8 +34,6 @@ public class User extends Player
 			visibleHands.hitTest();
 			visibleHands.update();
 		}
-		//手札のカード位置を調整
-		adjustUserHandsPosition();
 	}
 
 	@Override
@@ -48,6 +48,8 @@ public class User extends Player
 	{
 		super.drawCard( deck );
 		recreateVisibleHands();
+		//手札のカード位置を調整
+		adjustUserHandsPosition();
 	}
 
 	public MouseHitTestTask getVisibleHands()
@@ -65,6 +67,36 @@ public class User extends Player
 		for( Card c : hands ){
 			visibleHands.add( new CardUserHand( c ) );
 		}
+	}
+
+	/**
+	 * 選択されたカードを取り除く
+	 * @return 取り除かれたカードを格納したArrayList
+	 */
+	public List< Card > removeSelectedCards()
+	{
+		List< Card > cards = new ArrayList< Card >();
+		int handsIndex = 0;
+		MouseHitTestTask vHands = new MouseHitTestTask();
+		for( int i = 0; i < visibleHands.size(); ++i ){
+			CardUserHand cuh = (CardUserHand)visibleHands.get( i );
+			if( cuh.isSelected() ){
+				//選択されているカードなら手札から取り除き、カードは戻り値用変数に入れる。
+				cards.add( hands.remove( handsIndex ) );
+			}else{
+				//選択されていないなら新しいvisibleHands変数(vHands)に移し変える。
+				vHands.add( cuh );
+				//手札用のインデックスは取り除かれない限り進める。
+				++handsIndex;
+			}
+		}
+		//現状の手札に合わせたvisibleHandsに更新
+		visibleHands = vHands;
+
+		//手札のカード位置を調整
+		adjustUserHandsPosition();
+		
+		return cards;
 	}
 
 	/**

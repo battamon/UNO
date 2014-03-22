@@ -95,7 +95,7 @@ public class FPSControl
 			
 			actualFPS = ( (double)frameCount / realElapsedTime ) * 1000000000L;
 			//デバッグ出力にFPSを表示。別に必要ない。
-			System.out.println( df.format( actualFPS ) );
+			//System.out.println( df.format( actualFPS ) );
 			
 			frameCount = 0L;
 			calcInterval = 0L;

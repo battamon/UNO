@@ -6,6 +6,7 @@ import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Stack;
 
 import base.ImageManager;
@@ -28,13 +29,17 @@ public class State
 	/** 画面サイズ */
 	public static final Point SCREEN_SIZE = new Point( 640, 480 );
 	/** 捨て場の表示領域 */
-	public static final Rectangle DISCARD_PILE_AREA = new Rectangle( 275, 175, 90, 130 );
+	public static final Rectangle DISCARD_PILE_AREA = new Rectangle( 275, 155, 90, 130 );
+	/** 山札の表示領域 */
+	public static final Rectangle DECK_AREA = new Rectangle( 440, 155, 90, 130 );
 	/** メニューボタンの表示領域 */
 	public static final Rectangle BUTTON_MENU_AREA = new Rectangle( 570, 410, 60, 60 );
 
 	//ここからフィールド
 	/** 背景画像ハンドル */
 	private static final int hFrameImage;
+	/** カード表画像ハンドル */
+	private static final int hCardFrontImage;
 
 	/** プレイヤー人数 */
 	private int numPlayers = 0;
@@ -53,6 +58,7 @@ public class State
 	static
 	{
 		hFrameImage = ImageManager.readImage( "resource/image/bg_playing.png" );
+		hCardFrontImage = ImageManager.readImage( "resource/image/card_front.png" );
 	}
 	/**
 	 * コンストラクタ
@@ -72,8 +78,10 @@ public class State
 			case START: //ゲーム開始前の準備
 				//手札を配る
 				dealFirstCards();
-				//TODO:手番を決める。後でちゃんと実装しましょう。
+				//手番を決める
 				decideOrder();
+				//場札を決める
+				setFirstDiscardPile();
 				phase = Phase.PLAYING;
 				break;
 			case PLAYING:	//ゲーム開始
@@ -90,6 +98,10 @@ public class State
 	{
 		//背景
 		ImageManager.draw( g, hFrameImage, 0, 0 );
+		//山札
+		ImageManager.draw( g, hCardFrontImage, DECK_AREA.x, DECK_AREA.y );
+		//捨て場
+		ImageManager.draw( g, discardPile.peek().getImageHandle(), DISCARD_PILE_AREA.x, DISCARD_PILE_AREA.y );
 
 		//プレイヤー情報
 		for( Player p : players ){
@@ -202,6 +214,20 @@ public class State
 	}
 
 	/**
+	 * 場札を決める
+	 */
+	private void setFirstDiscardPile()
+	{
+		Card card;
+		while( ( card = deck.pop() ).glyph == ConstGame.GLYPH_WILD_DRAW_FOUR ){
+			//ワイルドドローフォーだったらやり直し
+			deck.add( card );
+			Collections.shuffle( deck );
+		}
+		discardPile.add( card );
+	}
+
+	/**
 	 * 現在の手番のプレイヤーを行動を決定する
 	 * ユーザーかNPCかでplayUser()、playNPC()に分岐する
 	 * @param player 今プレイしているプレイヤーを示すインデックス
@@ -209,31 +235,90 @@ public class State
 	 */
 	private boolean play( Player player )
 	{
+		//FIXME ユーザーとNPCの共通処理はこのメソッドでできるだけくくろう
 		return ( player.isUser() ) ? playUser( (User)player ) : playNPC( player );
 	}
 
 	private boolean playUser( User user )
 	{
 		boolean end = false;
+		List< Boolean > removableHandsList = user.isRemovableCards( discardPile.peek() );
 		//TODO: 操作プレイヤーの処理
-		//手札のクリック処理。左クリックで選択状態。右クリックで選択解除。
-		MouseHitTestTask visibleHands = user.getVisibleHands();
-		for( int i = 0; i < visibleHands.size(); ++i ){
-			CardUserHand cuh = (CardUserHand)visibleHands.get( i );
-			if( cuh.isLeftClicked() ){
-				cuh.setSelect( true );
+		//手札を出せるかどうか。出せるなら選択処理へ、出せないなら山札から1枚引く。
+		if( user.isPlayable( discardPile.peek() ) ){
+			//手札のクリック処理。左クリックで選択状態。右クリックで選択解除。
+			//FIXME 一度に1枚しか選択できない状態にしてあるので、ローカルルール実装時は修正が必要。
+			int selectedCardIndex = -1;
+			MouseHitTestTask visibleHands = user.getVisibleHands();
+			for( int i = 0; i < visibleHands.size(); ++i ){
+				CardUserHand cuh = (CardUserHand)visibleHands.get( i );
+				if( cuh.isLeftClicked() ){	//左クリック
+					if( removableHandsList.get( i ).booleanValue() ){	//出せるカードかチェック
+						if( cuh.isSelected() ){
+							end = true;	//既に選択状態のカードをクリックしたら場に出す
+						}else{
+							//選択フラグを立てる
+							selectedCardIndex = i;
+						}
+					}
+				}
+				if( cuh.isRightClicked() ){
+					cuh.setSelect( false );
+				}
 			}
-			if( cuh.isRightClicked() ){
-				cuh.setSelect( false );
+			if( selectedCardIndex != -1 ){
+				for( int i = 0; i < visibleHands.size(); ++i ){
+					CardUserHand cuh = (CardUserHand)visibleHands.get( i );
+					if( selectedCardIndex == i ){
+						cuh.setSelect( true );
+					}else{
+						cuh.setSelect( false );
+					}
+				}
 			}
+			if( end ){
+				//手札のカードを場に出す
+				putCardToDiscardPile( user.removeSelectedCards() );
+			}
+		}else{
+			//山札からカードを引く。 FIXME 標準ルールはカードを引いたら手番は終了するが、ローカルルールでは修正が必要かも。
+			user.drawCard( deck );
+			end = true;
 		}
+
 		return end;
 	}
 
 	private boolean playNPC( Player player )
 	{
 		boolean end = true;
+		List< Boolean > removableHandsList = player.isRemovableCards( discardPile.peek() );
+		if( player.isPlayable( discardPile.peek() ) ){
+			//TODO 出せるカードのうち最初に見つかったカードを出す。ちゃんと考えて選んで出せるようにしよう。
+			for( int i = 0; i < removableHandsList.size(); ++i ){
+				if( removableHandsList.get( i ).booleanValue() ){
+					discardPile.add( player.removeHands( i ) );
+					end = true;
+					break;
+				}
+			}
+		}else{
+			player.drawCard( deck );
+			end = true;
+		}
+		
 		//TODO: NPCプレイヤーの処理
 		return end;
+	}
+
+	/**
+	 * カードを場に出す
+	 * @param card プレイヤーの手札から出されたカード
+	 */
+	private void putCardToDiscardPile( List< Card > cards )
+	{
+		for( Card card : cards ){
+			discardPile.add( card );
+		}
 	}
 }
