@@ -17,9 +17,9 @@ import base.MouseHitTestTask;
 public class Title implements ISequence
 {
 	//定数
-	private static final Rectangle RECT_BUTTON_START = new Rectangle( 210, 220, 220, 50 );
-	private static final Rectangle RECT_BUTTON_SETUP = new Rectangle( 210, 290, 220, 50 );
-	private static final Rectangle RECT_BUTTON_EXIT  = new Rectangle( 210, 360, 220, 50 );
+	private static final Rectangle RECT_BUTTON_START = new Rectangle( 393, 240, 210, 50 );
+	private static final Rectangle RECT_BUTTON_SETUP = new Rectangle( 393, 308, 210, 50 );
+	private static final Rectangle RECT_BUTTON_EXIT  = new Rectangle( 393, 377, 210, 50 );
 	//static変数
 	private static int backGroundImageHandle = ImageManager.NO_HANDLE;
 

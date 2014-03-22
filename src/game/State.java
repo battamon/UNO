@@ -27,8 +27,6 @@ public class State
 	}
 	/** 画面サイズ */
 	public static final Point SCREEN_SIZE = new Point( 640, 480 );
-	/** ユーザーの手札の表示領域 */
-	public static final Rectangle USER_HANDS_AREA = new Rectangle( 80, 320, 480, 130);
 	/** 捨て場の表示領域 */
 	public static final Rectangle DISCARD_PILE_AREA = new Rectangle( 275, 175, 90, 130 );
 	/** メニューボタンの表示領域 */
@@ -44,16 +42,12 @@ public class State
 	private Stack< Card > deck = null;
 	/** 捨て場 */
 	private Stack< Card > discardPile = null;
-	/** 手札 */
-	private ArrayList< ArrayList< Card > > playerHands = null;
-	/** ユーザーの手札 */
-	private MouseHitTestTask userHands = null;
+	/** プレイヤー */
+	private ArrayList< Player > players = null;
 	/** ゲーム進行フラグ */
 	private Phase phase = Phase.START;
-	/** 操作プレイヤー(ユーザー)番号 */
-	private int userID = 0;
 	/** 現在の手番のプレイヤー番号 */
-	private int playingPlayer = 0;
+	private int whosePlayingIndex = 0;
 
 	//ここからメソッド
 	static
@@ -65,15 +59,14 @@ public class State
 	 */
 	public State()
 	{
-		userHands = new MouseHitTestTask();
 	}
 
 	public void update()
 	{
-		//当たり判定
-		userHands.hitTest();
-		//当たり判定オブジェクトの更新
-		userHands.update();
+		//プレイヤー更新
+		for( Player p : players ){
+			p.update();
+		}
 
 		switch( phase ){
 			case START: //ゲーム開始前の準備
@@ -84,12 +77,13 @@ public class State
 				phase = Phase.PLAYING;
 				break;
 			case PLAYING:	//ゲーム開始
-				playingPlayer = play( playingPlayer );
+				if( play( players.get( whosePlayingIndex ) ) ){
+					//現在の手番のプレイヤーが行動を終了したら次の手番に回す
+					whosePlayingIndex = ( whosePlayingIndex + 1 ) % players.size();
+				}
 				//TODO:以降の処理を書く
 				break;
 		}
-		//手札のカード位置を調整
-		adjustUserHandsPosition();
 	}
 
 	public void draw( Graphics g )
@@ -97,8 +91,10 @@ public class State
 		//背景
 		ImageManager.draw( g, hFrameImage, 0, 0 );
 
-		//TODO: とりあえずカード描画して動作テスト
-		userHands.draw( g );
+		//プレイヤー情報
+		for( Player p : players ){
+			p.draw( g );
+		}
 	}
 
 	/**
@@ -116,10 +112,13 @@ public class State
 	 */
 	public void initialize()
 	{
-		//プレイヤーの手札領域の確保
-		playerHands = new ArrayList< ArrayList< Card > >();
+		//プレイヤー領域の確保
+		players = new ArrayList< Player >();
+		//TODO:とりあえずプレイヤーの名前を適当に決める
+		players.add( new User( "user" ) );
+		int nameNumber = 0;
 		for( int i = 0; i < numPlayers; ++i ){
-			playerHands.add( new ArrayList< Card >() );
+			players.add( new Player( "NPC_" + nameNumber++ ) );
 		}
 		//山札領域の確保・山札の構築
 		deck = new Stack< Card >();
@@ -184,16 +183,9 @@ public class State
 	{
 		//各プレイヤーにNUM_FIRST_HANDS枚ずつ配る
 		for( int i = 0; i < ConstGame.NUM_FIRST_HANDS; ++i ){
-			for( int j = 0; j < numPlayers; ++j ){
-				playerHands.get( j ).add( deck.pop() );
+			for( Player p : players ){
+				p.drawCard( deck );
 			}
-		}
-		//自分の手札は色ソートする
-		Collections.sort( playerHands.get( userID ), new CardColorComparator() );
-		//自分の手札はCardVisibleクラスでラップして保持
-		for( Card card : playerHands.get( userID ) ){
-			CardUserHand cuh = new CardUserHand( card );
-			userHands.add( cuh );
 		}
 	}
 
@@ -202,58 +194,32 @@ public class State
 	 */
 	private void decideOrder()
 	{
-		//:TODOプレイヤーの番号で手番を決める。(適当な実装なのでちゃんと作り直そう。)
-		//userID = (int)( Math.random() * numPlayers );
-		userID = 0;
-	}
-
-	/**
-	 * 手札の表示位置を計算・調整
-	 */
-	private void adjustUserHandsPosition()
-	{
-		int num = userHands.size();
-		int x = USER_HANDS_AREA.x;
-		int y = USER_HANDS_AREA.y;
-		int widthMax = num * Card.WIDTH;	//カードを重ねずに並べたときの幅
-		//カードを重ねずに並べたときに表示領域からはみ出すかどうかを調べる
-		if( widthMax > USER_HANDS_AREA.width ){	//はみ出しそうなら・・・
-			//はみ出さないようにカードを重ねて表示しないといけないだけの幅を調べる
-			int overlapWidth = widthMax - USER_HANDS_AREA.width;	//重ねなければならない幅
-			//表示領域からはみ出さないようにoverlapWidthピクセル分をnum-1回分の重なりで均等に調整する
-			for( int i = 0; i < num - 1; ++i ){
-				( (CardVisible)userHands.get( i ) ).setPos( x, y );
-				x = USER_HANDS_AREA.x + Card.WIDTH * ( i + 1 ) - (int)( overlapWidth / (double)( num - 1 ) * ( i + 1 ) );	//次のカードのx座標を計算しておく
-			}
-			//最後の1枚の微調整
-			x = USER_HANDS_AREA.x + USER_HANDS_AREA.width - Card.WIDTH;
-			( (CardVisible)userHands.get( num - 1 ) ).setPos( x, y );
-		}else{	//そもそもはみ出さないなら左端から並べるだけ
-			for( int i = 0; i < num; ++i ){
-				( (CardVisible)userHands.get( i ) ).setPos( x, y );
-				x += Card.WIDTH;
-			}
+		//TODO:とりあえずシャッフルで決める。
+		Collections.shuffle( players );
+		for( int i = 0; i < players.size(); ++i ){
+			players.get( i ).setOrder( i );
 		}
 	}
 
 	/**
 	 * 現在の手番のプレイヤーを行動を決定する
 	 * ユーザーかNPCかでplayUser()、playNPC()に分岐する
-	 * @param player 
-	 * @return 次の手番のプレイヤー番号か、手番が回らない場合現在の手番のプレイヤー番号が返る。
+	 * @param player 今プレイしているプレイヤーを示すインデックス
+	 * @return プレイヤーの行動が完了したらtrueが返る
 	 */
-	private int play( int player )
+	private boolean play( Player player )
 	{
-		return ( player == userID ) ? playUser( player ) : playNPC( player );
+		return ( player.isUser() ) ? playUser( (User)player ) : playNPC( player );
 	}
 
-	private int playUser( int player )
+	private boolean playUser( User user )
 	{
-		int nextPlayer = player;
+		boolean end = false;
 		//TODO: 操作プレイヤーの処理
 		//手札のクリック処理。左クリックで選択状態。右クリックで選択解除。
-		for( int i = 0; i < userHands.size(); ++i ){
-			CardUserHand cuh = (CardUserHand)userHands.get( i );
+		MouseHitTestTask visibleHands = user.getVisibleHands();
+		for( int i = 0; i < visibleHands.size(); ++i ){
+			CardUserHand cuh = (CardUserHand)visibleHands.get( i );
 			if( cuh.isLeftClicked() ){
 				cuh.setSelect( true );
 			}
@@ -261,13 +227,13 @@ public class State
 				cuh.setSelect( false );
 			}
 		}
-		return nextPlayer;
+		return end;
 	}
 
-	private int playNPC( int player )
+	private boolean playNPC( Player player )
 	{
-		int nextPlayer = player;
+		boolean end = true;
 		//TODO: NPCプレイヤーの処理
-		return nextPlayer;
+		return end;
 	}
 }

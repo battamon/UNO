@@ -44,10 +44,6 @@ public class Card
 		WILD,
 		WILD_DRAW_FOUR,
 	}
-	private enum OrderW{
-		WILD,
-		WILD_DRAW_FOUR,
-	}
 	/** 種類別の色組み合わせ */
 	public static final EnumSet< Color > FLAGSET_COLORS_NUMBERS =
 			EnumSet.of( Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW );

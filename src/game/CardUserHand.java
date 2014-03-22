@@ -26,6 +26,7 @@ public class CardUserHand extends CardVisible
 	@Override
 	public void draw( Graphics g )
 	{
+		//TODO: 描画だけずらしているが、当たり判定はそのままなので直すなら直そう。
 		int x = rect.x;
 		int y = rect.y + ( selected ? SELECTED_MOVE_Y : 0 );
 		ImageManager.draw( g, card.getImageHandle(), x, y );
