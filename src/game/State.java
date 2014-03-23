@@ -23,7 +23,7 @@ public class State
 	private enum Phase{
 		START,
 		PLAYING,
-		GAMEOVER,
+		GAME_OVER,
 		RESULT,
 	}
 	/** 画面サイズ */
@@ -53,6 +53,10 @@ public class State
 	private Phase phase = Phase.START;
 	/** 現在の手番のプレイヤー番号 */
 	private int whosePlayingIndex = 0;
+	/** TODO フレームカウント。最終的に要らないかも */
+	private int frameCount = 0;
+	/** ログ表示クラス */
+	private GameLog logger;
 
 	//ここからメソッド
 	static
@@ -65,10 +69,12 @@ public class State
 	 */
 	public State()
 	{
+		logger = new GameLog();
 	}
 
 	public void update()
 	{
+		++frameCount;
 		//プレイヤー更新
 		for( Player p : players ){
 			p.update();
@@ -76,6 +82,8 @@ public class State
 
 		switch( phase ){
 			case START: //ゲーム開始前の準備
+				//場の初期化
+				reset();
 				//手札を配る
 				dealFirstCards();
 				//手番を決める
@@ -85,11 +93,30 @@ public class State
 				phase = Phase.PLAYING;
 				break;
 			case PLAYING:	//ゲーム開始
-				if( play( players.get( whosePlayingIndex ) ) ){
+				Player p = players.get( whosePlayingIndex );
+				if( play( p ) ){
 					//現在の手番のプレイヤーが行動を終了したら次の手番に回す
-					whosePlayingIndex = ( whosePlayingIndex + 1 ) % players.size();
+					int nextPlayer = ( whosePlayingIndex + 1 ) % players.size();
+					if( nextPlayer != whosePlayingIndex ){
+						//ゲームオーバー判定
+						if( p.getNumHands() == 0 ){
+							logger.setLog( p.getName() + "の手札が無くなりました。" );
+							logger.setLog( "ゲーム終了。" );
+							frameCount = 0;
+							phase = Phase.GAME_OVER;
+						}
+						whosePlayingIndex = nextPlayer;
+					}
 				}
-				//TODO:以降の処理を書く
+				break;
+			case GAME_OVER:
+				//TODO スコア計算に移る。シーケンス遷移？暫定の処理として次のゲームに移行する。
+				if( frameCount == 120 ){
+					phase = Phase.START;
+				}
+				break;
+			case RESULT:
+				//TODO 結果画面。シーケンス遷移？
 				break;
 		}
 	}
@@ -102,6 +129,8 @@ public class State
 		ImageManager.draw( g, hCardFrontImage, DECK_AREA.x, DECK_AREA.y );
 		//捨て場
 		ImageManager.draw( g, discardPile.peek().getImageHandle(), DISCARD_PILE_AREA.x, DISCARD_PILE_AREA.y );
+		//ログ
+		logger.view( g );
 
 		//プレイヤー情報
 		for( Player p : players ){
@@ -137,6 +166,22 @@ public class State
 		createShuffledDeck( deck );
 		//捨て場領域の確保
 		discardPile = new Stack< Card >();
+	}
+
+	private void reset()
+	{
+		//TODO カードの回収。いったん全部消去して再生成する方法もある。
+		while( !discardPile.isEmpty() ){
+			deck.add( discardPile.pop() );
+		}
+		for( Player p : players ){
+			List< Card > cards = p.removeAllHands();
+			while( !cards.isEmpty() ){
+				deck.add( cards.remove( 0 ) );
+			}
+		}
+		Collections.shuffle( deck );
+		logger.clear();
 	}
 
 	/**
@@ -278,11 +323,15 @@ public class State
 			}
 			if( end ){
 				//手札のカードを場に出す
-				putCardToDiscardPile( user.removeSelectedCards() );
+				setCardToDiscardPile( user.removeSelectedCards() );
+				if( user.getNumHands() == 1 ){
+					logger.setLog( user.getName() + "「UNO!」" );
+				}
 			}
 		}else{
 			//山札からカードを引く。 FIXME 標準ルールはカードを引いたら手番は終了するが、ローカルルールでは修正が必要かも。
-			user.drawCard( deck );
+			drawCard( user );
+			logger.setLog( user.getName() + "は山札から1枚引きました。" );
 			end = true;
 		}
 
@@ -291,19 +340,28 @@ public class State
 
 	private boolean playNPC( Player player )
 	{
+		//TODO 手番が回ってきたら少し待つ。アニメーション入れたらこの処理も要らなくなる
+		if( frameCount < 5 ) return false;
+		frameCount = 0;
+
 		boolean end = true;
 		List< Boolean > removableHandsList = player.isRemovableCards( discardPile.peek() );
 		if( player.isPlayable( discardPile.peek() ) ){
 			//TODO 出せるカードのうち最初に見つかったカードを出す。ちゃんと考えて選んで出せるようにしよう。
 			for( int i = 0; i < removableHandsList.size(); ++i ){
 				if( removableHandsList.get( i ).booleanValue() ){
+					//TODO setCardToDiscardPileメソッドを使おう
 					discardPile.add( player.removeHands( i ) );
+					if( player.getNumHands() == 1 ){
+						logger.setLog( player.getName() + "「UNO!」" );
+					}
 					end = true;
 					break;
 				}
 			}
 		}else{
-			player.drawCard( deck );
+			drawCard( player );
+			logger.setLog( player.getName() + "は山札から1枚引きました。" );
 			end = true;
 		}
 		
@@ -315,10 +373,26 @@ public class State
 	 * カードを場に出す
 	 * @param card プレイヤーの手札から出されたカード
 	 */
-	private void putCardToDiscardPile( List< Card > cards )
+	private void setCardToDiscardPile( List< Card > cards )
 	{
 		for( Card card : cards ){
 			discardPile.add( card );
+		}
+	}
+
+	/** プレイヤーに山札からカードを引かせる。山札が無くなったら繰り直す。 */
+	public void drawCard( Player player )
+	{
+		//カードを引かせる
+		player.drawCard( deck );
+
+		if( deck.isEmpty() ){	//山札が無くなった
+			Card top = discardPile.pop();	//場に見えているカードは山札に戻さない
+			while( !discardPile.isEmpty() ){
+				deck.add( discardPile.pop() );
+			}
+			discardPile.add( top );
+			Collections.shuffle( deck );	//山札シャッフルして終了
 		}
 	}
 }

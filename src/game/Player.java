@@ -68,7 +68,6 @@ public class Player
 	/** 山札からカードを1枚引く */
 	public void drawCard( Stack< Card > deck )
 	{
-		//FIXME 山札が無くなったときの処理を実装しよう
 		hands.add( deck.pop() );
 		Collections.sort( hands, new CardColorComparator() );
 	}
@@ -132,6 +131,29 @@ public class Player
 	{
 		//TODO 1枚だけ返す実装だが、ローカルルールによっては複数枚返さないとならない場合も？
 		return hands.remove( index );
+	}
+
+	/**
+	 * カードをすべて出す
+	 * @return 手札すべてを返す
+	 */
+	public List< Card > removeAllHands()
+	{
+		List< Card > cards = new ArrayList< Card >();
+		while( !hands.isEmpty() ){
+			cards.add( removeHands( 0 ) );
+		}
+		return cards;
+	}
+
+	public String getName()
+	{
+		return name;
+	}
+
+	public int getNumHands()
+	{
+		return hands.size();
 	}
 
 	//デバッグ用
