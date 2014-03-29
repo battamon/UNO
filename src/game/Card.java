@@ -1,5 +1,6 @@
 package game;
 
+
 import java.util.EnumSet;
 import java.util.HashMap;
 
@@ -73,7 +74,7 @@ public class Card
 	/** カードの種類を表す文字('0'～'9','r','s','d','w','f') */
 	public final char glyph;
 	/** カード効果を記述したオブジェクト */
-	private final IEvent event;
+	public final IEvent event;
 
 	//ここからメソッド
 	static

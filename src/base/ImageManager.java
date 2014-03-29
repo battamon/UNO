@@ -139,6 +139,20 @@ public class ImageManager
 	}
 
 	/**
+	 * 指定された比率で縮小拡大して描画する。
+	 * @param g 描画用オブジェクト
+	 * @param handle 描画したい画像のハンドル
+	 * @param x x座標
+	 * @param y y座標
+	 * @param w 幅
+	 * @param h 高さ
+	 */
+	public static void draw( Graphics g, int handle, int x, int y, int w, int h )
+	{
+		g.drawImage( images.get( handle ), x, y, w, h, NullImageObserver.instance );
+	}
+
+	/**
 	 * NullImageObserverクラス
 	 * Graphicsクラスで画像を描画する際に必要なオブジェクト
 	 * 実際は何もしていないただの形だけのクラス

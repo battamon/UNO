@@ -1,13 +1,17 @@
 package game;
 
+
 import java.awt.Color;
 import java.awt.Graphics;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Stack;
+
+import base.ImageManager;
 
 /**
  * プレイヤークラス<br>
@@ -25,6 +29,10 @@ public class Player
 	public static final int NUM_INFO_COLUMN = 5;	//一列に並ぶ情報画面の数
 	public static final int INFO_WIDTH = 100;
 	public static final int INFO_HEIGHT = 50;
+	//情報画面に出す裏を向いたカード
+	private static final int INFO_CARD_HEIGHT = 20;	//スケール基準
+	private static final int INFO_CARD_WIDTH = (int)( INFO_CARD_HEIGHT / (double)Card.HEIGHT * Card.WIDTH + 0.5d );
+	private static final int hImageCardBack = ImageManager.readImage( "resource/image/card_back.png" );
 	/** 名前 */
 	private String name;
 	/** 手札 */
@@ -38,6 +46,8 @@ public class Player
 
 	/** 情報画面位置 */
 	private Rectangle infoRect;
+	/** 手札表示位置 */
+	private List< Point > handPositions;
 
 	public Player( String name )
 	{
@@ -48,9 +58,9 @@ public class Player
 		infoRect = new Rectangle();
 		infoRect.width = INFO_WIDTH;
 		infoRect.height = INFO_HEIGHT;
+		handPositions = new ArrayList< Point >();
 	}
 
-	//何もしないように見えて、サブクラス用に必要なのだ。
 	public void update()
 	{
 	}
@@ -58,6 +68,11 @@ public class Player
 	/** プレイヤー情報画面の描画 */
 	public void draw( Graphics g )
 	{
+		//手札の表示
+		for( int i = hands.size() - 1; i >= 0; --i ){
+			Point pos = handPositions.get( i );
+			ImageManager.draw( g, hImageCardBack, pos.x, pos.y, INFO_CARD_WIDTH, INFO_CARD_HEIGHT );
+		}
 		//TODO:サンプル描画
 		Color c = g.getColor();
 		g.setColor( Color.BLACK );
@@ -70,6 +85,7 @@ public class Player
 	{
 		hands.add( deck.pop() );
 		Collections.sort( hands, new CardColorComparator() );
+		adjustPlayerHandsPosition();
 	}
 
 	/** 順番を設定する。ついでに情報画面の位置も計算しとく。 */
@@ -78,6 +94,7 @@ public class Player
 		this.order = order;
 		infoRect.x = INFO_POS_ORIGIN_X + INFO_POS_ALIGN_X * ( order % NUM_INFO_COLUMN );
 		infoRect.y = INFO_POS_ORIGIN_Y + INFO_POS_ALIGN_Y * ( order / NUM_INFO_COLUMN );
+		adjustPlayerHandsPosition();
 	}
 
 	public boolean isUser()
@@ -130,7 +147,9 @@ public class Player
 	public Card removeHands( int index )
 	{
 		//TODO 1枚だけ返す実装だが、ローカルルールによっては複数枚返さないとならない場合も？
-		return hands.remove( index );
+		Card card = hands.remove( index );
+		adjustPlayerHandsPosition();
+		return card;
 	}
 
 	/**
@@ -154,6 +173,42 @@ public class Player
 	public int getNumHands()
 	{
 		return hands.size();
+	}
+
+	private void adjustPlayerHandsPosition()
+	{
+		final int numHands = hands.size();
+		if( numHands == 0 ){
+			//手札が0ならオブジェクトだけ作っておしまい
+			handPositions = new ArrayList< Point >();
+			return;
+		}
+		
+		handPositions = Arrays.asList( new Point[ numHands ] );
+		final int fixOverlappedWidth = 2;	//最低限重ねる固定幅
+		final int widthMax = numHands * INFO_CARD_WIDTH - ( numHands - 1 ) * fixOverlappedWidth;
+		int overlappedWidth = widthMax - INFO_WIDTH;	//単純に並べたときにはみ出す幅
+		int x = infoRect.x;
+		int y = infoRect.y + ( infoRect.height - INFO_CARD_HEIGHT );
+		if( overlappedWidth > 0 ){
+			//単純に並べてはみ出す場合
+			for( int i = 0; i < numHands - 1; ++i ){
+				handPositions.set( i, new Point( x, y ) );
+				x = infoRect.x	//カード描画開始の原点
+						+ ( INFO_CARD_WIDTH * ( i + 1 )	//i枚目のカードは原点からこれだけ右にずらす
+						- ( fixOverlappedWidth * i )	//固定幅で重ねるためにこれだけ左に戻す
+						- (int)( ( (double)overlappedWidth / ( numHands - 1 ) ) * ( i + 1 ) ) );	//さらに範囲に収まるように微調整
+			}
+			//最後の一枚
+			x = infoRect.x + infoRect.width - INFO_CARD_WIDTH;
+			handPositions.set( numHands - 1, new Point( x, y ) );
+		}else{
+			//はみ出さない場合
+			for( int i = 0; i < numHands; ++i ){
+				x = infoRect.x + ( INFO_CARD_WIDTH * i ) - ( fixOverlappedWidth * i );
+				handPositions.set( i, new Point( x, y ) );
+			}
+		}
 	}
 
 	//デバッグ用

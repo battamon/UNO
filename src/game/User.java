@@ -19,6 +19,8 @@ public class User extends Player
 	public static final Rectangle USER_HANDS_AREA = new Rectangle( 80, 320, 480, 130);
 	/** ユーザー用の手札表示クラス */
 	private MouseHitTestTask visibleHands = null;
+	/** 出せるカードフラグ */
+	private List< Boolean > removableCardFlags = null;
 
 	public User( String name )
 	{
@@ -30,6 +32,7 @@ public class User extends Player
 	@Override
 	public void update()
 	{
+		super.update();
 		if( isUser() ){
 			visibleHands.hitTest();
 			visibleHands.update();
@@ -40,7 +43,14 @@ public class User extends Player
 	public void draw( Graphics g )
 	{
 		super.draw( g );
-		visibleHands.draw( g );
+		//visibleHands.draw( g );	//汎用の一括描画メソッドはハイライト処理が出来ないので使わない。
+		//場に出せないカードは暗く表示する。
+		for( int i = visibleHands.size() - 1; i >= 0; --i ){
+			CardUserHand c = (CardUserHand)visibleHands.get( i );
+			boolean dark = removableCardFlags != null ? !removableCardFlags.get( i ).booleanValue() : false;
+			c.setDark( dark );
+			c.draw( g );
+		}
 	}
 
 	@Override
@@ -69,6 +79,20 @@ public class User extends Player
 		}
 	}
 
+	/** 出せるカードフラグを描画用にフィールドとして保持しておく */
+	@Override
+	public List< Boolean > isRemovableCards( Card card )
+	{
+		removableCardFlags = super.isRemovableCards( card );
+		return removableCardFlags;
+	}
+
+	/** 不必要になった出せるカードフラグ情報を消す */
+	public void clearRemovablesCardFlags()
+	{
+		removableCardFlags = null;
+	}
+
 	/**
 	 * 選択されたカードを取り除く
 	 * @return 取り除かれたカードを格納したArrayList
@@ -82,7 +106,7 @@ public class User extends Player
 			CardUserHand cuh = (CardUserHand)visibleHands.get( i );
 			if( cuh.isSelected() ){
 				//選択されているカードなら手札から取り除き、カードは戻り値用変数に入れる。
-				cards.add( hands.remove( handsIndex ) );
+				cards.add( removeHands( handsIndex ) );
 			}else{
 				//選択されていないなら新しいvisibleHands変数(vHands)に移し変える。
 				vHands.add( cuh );
@@ -95,7 +119,6 @@ public class User extends Player
 
 		//手札のカード位置を調整
 		adjustUserHandsPosition();
-		
 		return cards;
 	}
 
@@ -111,11 +134,11 @@ public class User extends Player
 		//カードを重ねずに並べたときに表示領域からはみ出すかどうかを調べる
 		if( widthMax > USER_HANDS_AREA.width ){	//はみ出しそうなら・・・
 			//はみ出さないようにカードを重ねて表示しないといけないだけの幅を調べる
-			int overlapWidth = widthMax - USER_HANDS_AREA.width;	//重ねなければならない幅
+			int overlappedWidth = widthMax - USER_HANDS_AREA.width;	//重ねなければならない幅
 			//表示領域からはみ出さないようにoverlapWidthピクセル分をnum-1回分の重なりで均等に調整する
 			for( int i = 0; i < num - 1; ++i ){
 				( (CardVisible)visibleHands.get( i ) ).setPos( x, y );
-				x = USER_HANDS_AREA.x + Card.WIDTH * ( i + 1 ) - (int)( overlapWidth / (double)( num - 1 ) * ( i + 1 ) );	//次のカードのx座標を計算しておく
+				x = USER_HANDS_AREA.x + Card.WIDTH * ( i + 1 ) - (int)( overlappedWidth / (double)( num - 1 ) * ( i + 1 ) );	//次のカードのx座標を計算しておく
 			}
 			//最後の1枚の微調整
 			x = USER_HANDS_AREA.x + USER_HANDS_AREA.width - Card.WIDTH;

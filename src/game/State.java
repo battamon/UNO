@@ -1,5 +1,6 @@
 package game;
 
+
 import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -23,6 +24,7 @@ public class State
 	private enum Phase{
 		START,
 		PLAYING,
+		EVENT,
 		GAME_OVER,
 		RESULT,
 	}
@@ -53,8 +55,12 @@ public class State
 	private Phase phase = Phase.START;
 	/** 現在の手番のプレイヤー番号 */
 	private int whosePlayingIndex = 0;
-	/** TODO フレームカウント。最終的に要らないかも */
-	private int frameCount = 0;
+	/** 順番の進む方向 */
+	private boolean clockwise = true;
+	/** TODO COM用フレームカウント。最終的に要らないかも */
+	private int thinkingCount = 0;
+	/** TODO Resultフェイズから抜けるカウント。ボタンクリックで抜けるようにする？ */
+	private int waitingCount = 0;
 	/** ログ表示クラス */
 	private GameLog logger;
 
@@ -62,7 +68,7 @@ public class State
 	static
 	{
 		hFrameImage = ImageManager.readImage( "resource/image/bg_playing.png" );
-		hCardFrontImage = ImageManager.readImage( "resource/image/card_front.png" );
+		hCardFrontImage = ImageManager.readImage( "resource/image/card_back.png" );
 	}
 	/**
 	 * コンストラクタ
@@ -74,7 +80,6 @@ public class State
 
 	public void update()
 	{
-		++frameCount;
 		//プレイヤー更新
 		for( Player p : players ){
 			p.update();
@@ -93,25 +98,36 @@ public class State
 				phase = Phase.PLAYING;
 				break;
 			case PLAYING:	//ゲーム開始
-				Player p = players.get( whosePlayingIndex );
-				if( play( p ) ){
-					//現在の手番のプレイヤーが行動を終了したら次の手番に回す
-					int nextPlayer = ( whosePlayingIndex + 1 ) % players.size();
-					if( nextPlayer != whosePlayingIndex ){
-						//ゲームオーバー判定
-						if( p.getNumHands() == 0 ){
-							logger.setLog( p.getName() + "の手札が無くなりました。" );
-							logger.setLog( "ゲーム終了。" );
-							frameCount = 0;
-							phase = Phase.GAME_OVER;
-						}
-						whosePlayingIndex = nextPlayer;
+				Player p = getCurrentPlayer();
+				int numBiforeHands = p.getNumHands();
+				if( play( p ) ){	//行動が完了した
+					int numAfterHands = p.getNumHands();
+					//ゲームオーバー判定
+					if( numAfterHands == 0 ){
+						logger.setLog( p.getName() + "の手札が無くなりました。" );
+						logger.setLog( "ゲーム終了。" );
+						thinkingCount = 0;
+						phase = Phase.GAME_OVER;
+					//カード効果有無判定
+					}else if( numAfterHands < numBiforeHands && getDiscardPileTop().event.hasEvent() ){
+						phase = Phase.EVENT;
+					//何も無ければ次の人へ
+					}else{
+						advanceTurn();
 					}
 				}
 				break;
+			case EVENT:
+				//TODO とりあえず即時発動
+				getDiscardPileTop().event.activate( this );
+				advanceTurn();
+				phase = Phase.PLAYING;
+				break;
 			case GAME_OVER:
 				//TODO スコア計算に移る。シーケンス遷移？暫定の処理として次のゲームに移行する。
-				if( frameCount == 120 ){
+				++waitingCount;
+				if( waitingCount == 120 ){
+					waitingCount = 0;
 					phase = Phase.START;
 				}
 				break;
@@ -128,7 +144,7 @@ public class State
 		//山札
 		ImageManager.draw( g, hCardFrontImage, DECK_AREA.x, DECK_AREA.y );
 		//捨て場
-		ImageManager.draw( g, discardPile.peek().getImageHandle(), DISCARD_PILE_AREA.x, DISCARD_PILE_AREA.y );
+		ImageManager.draw( g, getDiscardPileTop().getImageHandle(), DISCARD_PILE_AREA.x, DISCARD_PILE_AREA.y );
 		//ログ
 		logger.view( g );
 
@@ -158,7 +174,7 @@ public class State
 		//TODO:とりあえずプレイヤーの名前を適当に決める
 		players.add( new User( "user" ) );
 		int nameNumber = 0;
-		for( int i = 0; i < numPlayers; ++i ){
+		for( int i = 1; i < numPlayers; ++i ){
 			players.add( new Player( "NPC_" + nameNumber++ ) );
 		}
 		//山札領域の確保・山札の構築
@@ -180,8 +196,11 @@ public class State
 				deck.add( cards.remove( 0 ) );
 			}
 		}
+		clockwise = true;
 		Collections.shuffle( deck );
 		logger.clear();
+		thinkingCount = 0;
+		waitingCount = 0;
 	}
 
 	/**
@@ -199,7 +218,7 @@ public class State
 		}
 		//カード[Reverse]、[Skip]、[DrawTwo] 赤青緑黄 各2枚 計24枚
 		char[] symbols = { ConstGame.GLYPH_REVERSE, ConstGame.GLYPH_SKIP, ConstGame.GLYPH_DRAW_TWO };
-		IEvent[] symbolEvents = { new EventNull()/* TODO:EventReverse */, new EventNull()/* TODO:EventSkip */, new EventNull()/* TODO:EventDrawTwo */ };
+		IEvent[] symbolEvents = { new EventReverse(), new EventSkip(), new EventDrawTwo() };
 		for( int i = 0; i < symbols.length; ++i ){
 			createCards( deck, ConstGame.NUM_SYMBOL_CARDS, Card.Type.SYMBOL, symbols[ i ], Card.FLAGSET_COLORS_SYMBOLS_WITHOUT_WILDS, symbolEvents[ i ] );
 		}
@@ -287,7 +306,7 @@ public class State
 	private boolean playUser( User user )
 	{
 		boolean end = false;
-		List< Boolean > removableHandsList = user.isRemovableCards( discardPile.peek() );
+		List< Boolean > removableHandsList = user.isRemovableCards( getDiscardPileTop() );
 		//TODO: 操作プレイヤーの処理
 		//手札を出せるかどうか。出せるなら選択処理へ、出せないなら山札から1枚引く。
 		if( user.isPlayable( discardPile.peek() ) ){
@@ -335,14 +354,19 @@ public class State
 			end = true;
 		}
 
+		if( end ){
+			user.clearRemovablesCardFlags();	//手番が終わったらフラグ情報は消しておく。
+		}
+
 		return end;
 	}
 
 	private boolean playNPC( Player player )
 	{
 		//TODO 手番が回ってきたら少し待つ。アニメーション入れたらこの処理も要らなくなる
-		if( frameCount < 5 ) return false;
-		frameCount = 0;
+		++thinkingCount;
+		if( thinkingCount < 30 ) return false;
+		thinkingCount = 0;
 
 		boolean end = true;
 		List< Boolean > removableHandsList = player.isRemovableCards( discardPile.peek() );
@@ -394,5 +418,45 @@ public class State
 			discardPile.add( top );
 			Collections.shuffle( deck );	//山札シャッフルして終了
 		}
+	}
+
+	/** 次のプレイヤーを示すインデックスを返す。 */
+	private int getNextPlayerIndex(){
+		return clockwise ? ( whosePlayingIndex + 1 ) % players.size() : ( whosePlayingIndex - 1 + players.size() ) % players.size();
+	}
+
+	/** 順番の方向を切り替える */
+	public void switchOrderDirection()
+	{
+		clockwise = !clockwise;
+	}
+
+	/** ログオブジェクトを取得する */
+	public GameLog getLogger()
+	{
+		return logger;
+	}
+
+	/** 現在の手番のプレイヤーオブジェクトを取得する */
+	public Player getCurrentPlayer()
+	{
+		return players.get( whosePlayingIndex );
+	}
+
+	/** 次の手番のプレイヤーオブジェクトを取得する */
+	public Player getNextPlayer(){
+		return players.get( getNextPlayerIndex() );
+	}
+
+	/** 手番を次へ回す */
+	public void advanceTurn()
+	{
+		whosePlayingIndex = getNextPlayerIndex();
+	}
+
+	/** 捨て場の一番上にあるカードを返す */
+	public Card getDiscardPileTop()
+	{
+		return discardPile.peek();
 	}
 }

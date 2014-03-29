@@ -8,7 +8,13 @@ package game;
 public class EventNull implements IEvent
 {
 	@Override
-	public void event( State state )
+	public boolean hasEvent()
+	{
+		return false;
+	}
+	
+	@Override
+	public void activate( State state )
 	{
 		return;
 	}

@@ -31,7 +31,7 @@ public class GameParent implements ISequence
 	{
 		state = new State();
 		//TODO:人数は設定なりで決めよう
-		state.setRule( 4 );
+		state.setRule( 5 );
 		state.initialize();
 		//最初はプレイ画面から
 		child = new Play();

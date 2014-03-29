@@ -32,7 +32,6 @@ public class CardVisible implements IHitTestObject
 	{
 		this.card = card;
 		rect = new Rectangle( 0, 0, Card.WIDTH, Card.HEIGHT );
-
 		hitSurfaceFlag = hitBackFlag = false;
 	}
 
