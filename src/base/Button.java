@@ -14,6 +14,8 @@ public class Button implements IHitTestObject
 {
 	/** ボタンの位置、サイズ。 */
 	private Rectangle rect;
+	/** ボタンの画像 */
+	private int hImage;
 
 	//IHitTestObject関連
 	/** 直接ヒットした場合のフラグ */
@@ -46,6 +48,7 @@ public class Button implements IHitTestObject
 		hitSurfaceFlag = false;
 		//hitBackFlag = false;
 		clicked = false;
+		hImage = ImageManager.NO_HANDLE;
 	}
 
 	@Override
@@ -65,7 +68,10 @@ public class Button implements IHitTestObject
 	public void draw( Graphics g )
 	{
 		Color prevColor = null;
-		//TODO:かんたんなハイライト処理 ボタンを画像にすることも要検討
+		//ボタンに画像がセットされてるなら描画
+		if( hImage != ImageManager.NO_HANDLE ){
+			ImageManager.draw( g, hImage, rect.x, rect.y );
+		}
 		if( hitSurfaceFlag ){
 			prevColor = g.getColor();
 			g.setColor( new Color( 0, 255, 255, 64 ) );
@@ -121,5 +127,10 @@ public class Button implements IHitTestObject
 	public boolean isClicked()
 	{
 		return clicked;
+	}
+
+	public void setImageHandle( int imageHandle )
+	{
+		hImage = imageHandle;
 	}
 }

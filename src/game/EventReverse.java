@@ -14,7 +14,7 @@ public class EventReverse implements IEvent
 	
 	/** 順番を反対にする */
 	@Override
-	public void activate( State state )
+	public void activate( GameState state )
 	{
 		state.switchOrderDirection();
 		state.getLogger().setLog( "順番が反対になりました。");

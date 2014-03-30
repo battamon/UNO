@@ -139,6 +139,25 @@ public class Card
 		return hImages[ handleIndex ];
 	}
 
+	/**
+	 * カードの点数を返す
+	 */
+	public int getScore()
+	{
+		switch( type ){
+			case NUMBER:
+				return glyph - '0';
+			case SYMBOL:
+				switch( glyph ){
+					case 'r': case 's': case 'd':
+						return 20;
+					case 'w': case 'f':
+						return 50;
+				}
+		}
+		return 0;
+	}
+
 	//TODO:デバッグ用？
 	@Override
 	public String toString()

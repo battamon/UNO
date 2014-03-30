@@ -16,5 +16,5 @@ public interface IEvent
 	 * ゲームの状態を変化させるので、ゲーム本体クラス(State)のオブジェクトを引数にとる。
 	 * @param state ゲーム本体クラスのオブジェクト
 	 */
-	public abstract void activate( State state );
+	public abstract void activate( GameState state );
 }

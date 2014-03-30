@@ -14,7 +14,7 @@ public class EventNull implements IEvent
 	}
 	
 	@Override
-	public void activate( State state )
+	public void activate( GameState state )
 	{
 		return;
 	}

@@ -16,5 +16,5 @@ public class ConstGame
 	public static final char GLYPH_WILD_DRAW_FOUR = 'f';
 
 	/** 初期の手札枚数 */
-	public static final int NUM_FIRST_HANDS = 7;
+	public static final int NUM_FIRST_HANDS = 1;
 }

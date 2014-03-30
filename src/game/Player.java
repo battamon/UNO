@@ -39,6 +39,8 @@ public class Player
 	protected ArrayList< Card > hands = null;
 	/** 持ち点 */
 	private int score;
+	/** 増減点 */
+	private int fluctuationPoint;
 	/** 順番 */
 	private int order;
 	/** ユーザーかNPCか */
@@ -54,6 +56,7 @@ public class Player
 		this.name = name;
 		hands = new ArrayList< Card >();
 		score = 0;
+		fluctuationPoint = 0;
 		user = false;
 		infoRect = new Rectangle();
 		infoRect.width = INFO_WIDTH;
@@ -153,15 +156,17 @@ public class Player
 	}
 
 	/**
-	 * カードをすべて出す
-	 * @return 手札すべてを返す
+	 * 次のゲームへ移行するために必要な初期化を行う。
+	 * @return 持っているカードをすべて返す
 	 */
-	public List< Card > removeAllHands()
+	public List< Card > prepareNextGame()
 	{
 		List< Card > cards = new ArrayList< Card >();
 		while( !hands.isEmpty() ){
 			cards.add( removeHands( 0 ) );
 		}
+		addScore();
+		order = 0;
 		return cards;
 	}
 
@@ -173,6 +178,16 @@ public class Player
 	public int getNumHands()
 	{
 		return hands.size();
+	}
+
+	public int getFluctuationPoint()
+	{
+		return fluctuationPoint;
+	}
+
+	public int getScore()
+	{
+		return score + fluctuationPoint;
 	}
 
 	private void adjustPlayerHandsPosition()
@@ -211,10 +226,30 @@ public class Player
 		}
 	}
 
+	public int calcScore()
+	{
+		int ret = 0;
+		for( Card c : hands ){
+			ret += c.getScore();
+		}
+		return ret;
+	}
+
+	public void stackScore( int fluc )
+	{
+		fluctuationPoint += fluc;
+	}
+
+	private void addScore()
+	{
+		score += fluctuationPoint;
+		fluctuationPoint = 0;
+	}
+
 	//デバッグ用
 	@Override
 	public String toString()
 	{
-		return "No." + ( order + 1 ) + " " + name + " " + hands.size() + "枚";
+		return name + " " + hands.size() + "枚" + " " + score + "点";
 	}
 }

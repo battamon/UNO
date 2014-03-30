@@ -23,8 +23,8 @@ public class MainPanel extends JPanel implements Runnable
 	public static final int LOOP_END = 0;
 	public static final int LOOP_CONTINUE = 1;
 	//画面サイズ
-	private static final int WIDTH = 640;
-	private static final int HEIGHT = 480;
+	public static final int WIDTH = 640;
+	public static final int HEIGHT = 480;
 	/** ゲームを動かすスレッド */
 	private Thread gameMain;
 	/** ループフラグ */

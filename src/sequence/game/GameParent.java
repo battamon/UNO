@@ -1,6 +1,6 @@
 package sequence.game;
 
-import game.State;
+import game.GameState;
 
 import java.awt.Graphics;
 
@@ -18,23 +18,24 @@ public class GameParent implements ISequence
 	//定数
 	public static final int NEXT_SEQUENCE_DEFAULT = -1;
 	public static final int NEXT_SEQUENCE_PLAY = 0;
+	public static final int NEXT_SEQUENCE_RESULT = 1;
 
 	/** 子シーケンス */
 	private ISequence child = null;
 	/** ゲーム本体オブジェクト */
-	private State state = null;
+	private GameState state = null;
 
 	/**
 	 * コンストラクタ
 	 */
 	public GameParent()
 	{
-		state = new State();
+		state = new GameState();
 		//TODO:人数は設定なりで決めよう
 		state.setRule( 5 );
 		state.initialize();
 		//最初はプレイ画面から
-		child = new Play();
+		child = new Play( state );
 	}
 
 	@Override
@@ -49,6 +50,12 @@ public class GameParent implements ISequence
 			//シーケンス遷移
 			switch( next ){
 				case NEXT_SEQUENCE_PLAY:
+					releaseChild();
+					child = new Play( state );
+					break;
+				case NEXT_SEQUENCE_RESULT:
+					releaseChild();
+					child = new Result( state );
 					break;
 				default:
 					break;
@@ -68,8 +75,9 @@ public class GameParent implements ISequence
 	{
 	}
 
-	public State getGameState()
+	private void releaseChild()
 	{
-		return state;
+		child.destroy();
+		child = null;
 	}
 }

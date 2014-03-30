@@ -1,5 +1,7 @@
 package base;
 
+import java.awt.Dimension;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.image.BufferedImage;
@@ -19,6 +21,12 @@ import javax.imageio.ImageIO;
  */
 public class ImageManager
 {
+	/** 位置調整指定enum */
+	public enum Align{
+		DEFAULT,
+		CENTER,
+		RIGHT,
+	}
 	/** ハンドルが無効なときの値 */
 	public static final int NO_HANDLE = -1;
 	/** 次に取得される画像のハンドル値 */
@@ -150,6 +158,81 @@ public class ImageManager
 	public static void draw( Graphics g, int handle, int x, int y, int w, int h )
 	{
 		g.drawImage( images.get( handle ), x, y, w, h, NullImageObserver.instance );
+	}
+
+	/**
+	 * Graphicsオブジェクトで現在設定されているフォント情報から、指定した文字列を描画する際に必要な矩形サイズを取得する。
+	 * @param g Graphicsオブジェクト
+	 * @param text 描画したい文字列
+	 * @return Dimensionクラスで表した矩形サイズ
+	 */
+	public static Dimension getStringPixelSize( Graphics g, String text )
+	{
+		Dimension d = new Dimension();
+		FontMetrics fm = g.getFontMetrics();
+		d.width = fm.stringWidth( text );
+		d.height = fm.getHeight();
+		return d;
+	}
+
+	/**
+	 * 左上を原点とする文字列描画を行う。(Graphics#drawString()はベースラインが原点になっている。)
+	 * @param g Graphicsオブジェクト
+	 * @param text 描画したい文字列
+	 * @param x 描画開始位置x
+	 * @param y 描画開始位置y
+	 */
+	public static void drawString( Graphics g, String text, int x, int y )
+	{
+		drawString( g, text, x, y, 0, 0, Align.DEFAULT, Align.DEFAULT );
+	}
+
+	/**
+	 * 範囲を指定して位置調整しつつ文字列描画を行う。
+	 * @param g Graphicsオブジェクト
+	 * @param text 描画したい文字列
+	 * @param x 描画範囲の原点座標x
+	 * @param y 描画範囲の原点座標y
+	 * @param w 描画範囲の幅
+	 * @param h 描画範囲の高さ
+	 * @param colAlign 描画範囲におけるx軸方向の位置
+	 */
+	public static void drawString( Graphics g, String text, int x, int y, int w, int h, Align align )
+	{
+		drawString( g, text, x, y, w, h, align, Align.DEFAULT );
+	}
+
+	/**
+	 * 範囲を指定して位置調整しつつ文字列描画を行う。
+	 * @param g Graphicsオブジェクト
+	 * @param text 描画したい文字列
+	 * @param x 描画範囲の原点座標x
+	 * @param y 描画範囲の原点座標y
+	 * @param w 描画範囲の幅
+	 * @param h 描画範囲の高さ
+	 * @param colAlign 描画範囲におけるx軸方向の位置
+	 * @param rowAlign 描画範囲におけるy軸方向の位置
+	 */
+	public static void drawString( Graphics g, String text, int x, int y, int w, int h, Align colAlign, Align rowAlign )
+	{
+		FontMetrics fm = g.getFontMetrics();
+		int ascent = fm.getAscent();
+		int textWidth = fm.stringWidth( text );
+		int textHeight = fm.getHeight();
+
+		int dx, dy;
+		switch( colAlign ){
+			case DEFAULT: dx = x;                         break;
+			case CENTER:  dx = x + ( w - textWidth ) / 2; break;
+			case RIGHT:   dx = x + ( w - textWidth );     break;
+			default:      dx = x;                         break;
+		}
+		switch( rowAlign ){
+			case DEFAULT: dy = y + ascent;                          break;
+			case CENTER:  dy = y + ascent + ( h - textHeight ) / 2; break;
+			default:      dy = y + ascent;                          break;
+		}
+		g.drawString( text.toString(), dx, dy );
 	}
 
 	/**

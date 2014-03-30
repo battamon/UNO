@@ -10,7 +10,7 @@ public class EventDrawTwo implements IEvent
 	
 	/** 次のプレイヤーにカードを2枚引かせ、手番を終了させる。 */
 	@Override
-	public void activate( State state )
+	public void activate( GameState state )
 	{
 		//TODO 標準ルールのみ実装。後でローカルルールに対応させよう。
 		Player nextPlayer = state.getNextPlayer();

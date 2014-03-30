@@ -9,7 +9,7 @@ public class EventSkip implements IEvent
 	}
 
 	@Override
-	public void activate( State state )
+	public void activate( GameState state )
 	{
 		state.getLogger().setLog( state.getNextPlayer().getName() + "の手番が飛ばされます。");
 		state.advanceTurn();
