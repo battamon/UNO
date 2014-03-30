@@ -15,18 +15,28 @@ public class Card
 	//各種定義
 	/** 色の定義 */
 	public enum Color{
-		RED,
-		BLUE,
-		GREEN,
-		YELLOW,
-		BLACK,
-		NUM_COLORS,
+		RED( "赤" ),
+		BLUE( "青" ),
+		GREEN( "緑" ),
+		YELLOW( "黄" ),
+		BLACK( "黒" ),
+		NUM_COLORS( "" );
+		String textColor;
+		private Color( String s ){ textColor = s; }
+		@Override public String toString(){ return textColor; }
 	}
 	/** タイプの定義 */
 	public enum Type{
 		NUMBER,
 		SYMBOL,
 	}
+	/** カードの種類を表す文字群。 */
+	public static final char GLYPH_REVERSE = 'r';
+	public static final char GLYPH_SKIP = 's';
+	public static final char GLYPH_DRAW_TWO = 'd';
+	public static final char GLYPH_WILD = 'w';
+	public static final char GLYPH_WILD_DRAW_FOUR = 'f';
+
 	/** 数字と記号の並び順 */
 	public enum Order{
 		ZERO,
@@ -59,6 +69,11 @@ public class Card
 	private static final int NUM_KINDS_PER_COLOR = 13;	//0123456789rsdの13種
 	/** カードの種類の総数 */
 	private static final int NUM_KINDS = NUM_KINDS_PER_COLOR * Color.NUM_COLORS.ordinal() + 2;
+	/** 種類別のカード総数 */
+	public static final int NUM_NUMBER_ZERO_CARDS = 1;
+	public static final int NUM_NUMBER_WITHOUT_ZERO_CARDS = 2;
+	public static final int NUM_SYMBOL_CARDS = 2;
+	public static final int NUM_SYMBOL_WILDS_CARDS = 4;
 
 	//static変数
 	/** カードの画像ハンドル */

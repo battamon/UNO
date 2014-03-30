@@ -109,9 +109,9 @@ public class Player
 	 * 手持ちのカードが1枚以上出せるかどうかを返す
 	 * @return 出せるならtrue
 	 */
-	public boolean isPlayable( Card discardTop )
+	public boolean isPlayable( Card.Color color, char glyph )
 	{
-		List< Boolean > removables = isRemovableCards( discardTop );
+		List< Boolean > removables = isRemovableCards( color, glyph );
 		for( Boolean b : removables ){
 			if( b.booleanValue() ) return true;
 		}
@@ -123,16 +123,16 @@ public class Player
 	 * @param discardTop 捨て場に見えているカード
 	 * @return 出せるかどうかを示すリスト
 	 */
-	public List< Boolean > isRemovableCards( Card discardTop )
+	public List< Boolean > isRemovableCards( Card.Color color, char glyph )
 	{
 		List< Boolean > removables = Arrays.asList( new Boolean[ hands.size() ] );
 		for( int i = 0; i < hands.size(); ++i ){
 			Card card = hands.get( i );
 			//出せるパターンならremovablesにtrueをセット
 			if( card.color == Card.Color.BLACK				//出すカードが黒
-					|| discardTop.color == Card.Color.BLACK	//出ているカードが黒
-					|| card.color == discardTop.color		//色が同じ
-					|| card.glyph == discardTop.glyph ){	//数字記号が同じ
+					|| color == Card.Color.BLACK	//出ているカードが黒
+					|| card.color == color		//色が同じ
+					|| card.glyph == glyph ){	//数字記号が同じ
 				removables.set( i, Boolean.TRUE );
 				continue;
 			}

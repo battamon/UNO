@@ -81,9 +81,9 @@ public class User extends Player
 
 	/** 出せるカードフラグを描画用にフィールドとして保持しておく */
 	@Override
-	public List< Boolean > isRemovableCards( Card card )
+	public List< Boolean > isRemovableCards( Card.Color color, char glyph )
 	{
-		removableCardFlags = super.isRemovableCards( card );
+		removableCardFlags = super.isRemovableCards( color, glyph );
 		return removableCardFlags;
 	}
 

@@ -33,6 +33,8 @@ public class GameState
 		GAME_OVER,
 		RESULT,
 	}
+	//無効なカード文字
+	public static final char INVALID_GLYPH = '\0';
 	/** 画面サイズ */
 	public static final Point SCREEN_SIZE = new Point( 640, 480 );
 	/** 捨て場の表示領域 */
@@ -41,7 +43,9 @@ public class GameState
 	public static final Rectangle DECK_AREA = new Rectangle( 440, 155, 90, 130 );
 	/** メニューボタンの表示領域 */
 	public static final Rectangle BUTTON_MENU_AREA = new Rectangle( 570, 410, 60, 60 );
-
+	/** 初期の手札枚数 */
+	public static final int NUM_FIRST_HANDS = 7;
+	
 	//ここからフィールド
 	/** 背景画像ハンドル */
 	private static final int hFrameImage;
@@ -72,6 +76,12 @@ public class GameState
 	private int gameCount = 0;
 	/** プレイヤーのインデックスをランク順に並べたもの */
 	private List< Integer > rankIndices;
+	/** 現在の場で有効なカード色 */
+	private Card.Color validColor;
+	/** 現在の場で有効なカード文字 */
+	private char validGlyph;
+	/** イベント。イベント発生中にオブジェクトが代入される。 */
+	private IEvent activeEvent;
 
 	//ここからメソッド
 	static
@@ -119,7 +129,8 @@ public class GameState
 						thinkingCount = 0;
 						phase = Phase.GAME_OVER;
 					//カード効果有無判定
-					}else if( numAfterHands < numBiforeHands && getDiscardPileTop().event.hasEvent() ){
+					}else if( numAfterHands < numBiforeHands && discardPile.peek().event.hasEvent() ){
+						activeEvent = discardPile.peek().event;
 						phase = Phase.EVENT;
 					//何も無ければ次の人へ
 					}else{
@@ -129,11 +140,17 @@ public class GameState
 				break;
 			}
 			case EVENT:
-				//TODO とりあえず即時発動
-				getDiscardPileTop().event.activate( this );
-				advanceTurn();
-				phase = Phase.PLAYING;
+			{
+				//ユーザーかNPCかで呼び出すupdateメソッドを切り替える
+				boolean recieved = getCurrentPlayer().isUser() ? activeEvent.updateByUser() : activeEvent.updateByNPC();
+				if( recieved ){
+					activeEvent.activate( this );
+					advanceTurn();
+					activeEvent = null;
+					phase = Phase.PLAYING;
+				}
 				break;
+			}
 			case GAME_OVER: //1ゲーム終了。RESULTフェイズまでのインターバル。
 				++waitingCount;
 				if( waitingCount == 60 ){
@@ -168,8 +185,8 @@ public class GameState
 		//山札
 		ImageManager.draw( g, hCardFrontImage, DECK_AREA.x, DECK_AREA.y );
 		//捨て場
-		if( getDiscardPileTop() != null ){
-			ImageManager.draw( g, getDiscardPileTop().getImageHandle(), DISCARD_PILE_AREA.x, DISCARD_PILE_AREA.y );
+		if( !discardPile.isEmpty() ){
+			ImageManager.draw( g, discardPile.peek().getImageHandle(), DISCARD_PILE_AREA.x, DISCARD_PILE_AREA.y );
 		}
 		//ログ
 		logger.view( g );
@@ -177,6 +194,11 @@ public class GameState
 		//プレイヤー情報
 		for( Player p : players ){
 			p.draw( g );
+		}
+
+		//イベント
+		if( activeEvent != null ){
+			activeEvent.draw( g );
 		}
 	}
 
@@ -228,7 +250,6 @@ public class GameState
 			x += colWidths[ i ];
 		}
 		y += rowHeight;
-		//FIXME 順位が設定されてないので改善しましょう
 		for( int i = 0; i < players.size(); ++i ){
 			Player p = players.get( rankIndices.get( i ) );
 			int colIndex = 0;
@@ -245,11 +266,24 @@ public class GameState
 			x += colWidths[ colIndex++ ];
 			final int viewCardHeight = rowHeight - 2;
 			final int viewCardWidth = (int)( (double)viewCardHeight / Card.HEIGHT * Card.WIDTH + 0.5 );
-			//FIXME カードを並べる。このままだとカード枚数が多いとはみ出す。
+			int maxWidth = viewCardWidth * p.hands.size();
+			int overlappedWidth = maxWidth - colWidths[ colIndex ];
 			int cx = x + 10;
-			for( Card c : p.hands ){
-				ImageManager.draw( g, c.getImageHandle(), cx, y + 2, viewCardWidth, viewCardHeight );
-				cx += viewCardWidth;
+			int cy = y + 2;
+			if( overlappedWidth > 0 ){	//単純に並べてはみ出すなら調整しながら並べる
+				int ccx = cx;
+				for( int j = 0; j < p.hands.size() - 1; ++j ){
+					ImageManager.draw( g, p.hands.get( j ).getImageHandle(), ccx, cy, viewCardWidth, viewCardHeight );
+					ccx = cx + viewCardWidth * ( j + 1 ) - (int)( overlappedWidth / (double)( p.hands.size() - 1 ) * ( j + 1 ) );	//次のカードのx座標を計算しておく
+				}
+				//最後の1枚の微調整
+				ccx = cx + colWidths[ colIndex ] - viewCardWidth;
+				ImageManager.draw( g, p.hands.get( p.hands.size() - 1 ).getImageHandle(), ccx, cy, viewCardWidth, viewCardHeight );
+			}else{	//単純に並べてもはみ出さないならそのまま並べる。
+				for( Card c : p.hands ){
+					ImageManager.draw( g, c.getImageHandle(), cx, cy, viewCardWidth, viewCardHeight );
+					cx += viewCardWidth;
+				}
 			}
 			//換算点
 			x += colWidths[ colIndex++ ];
@@ -323,6 +357,7 @@ public class GameState
 		logger.clear();
 		thinkingCount = 0;
 		waitingCount = 0;
+		activeEvent = null;
 	}
 
 	/**
@@ -333,22 +368,22 @@ public class GameState
 	{
 		//全カードの生成 全108枚
 		//カード[0] 赤青緑黄 各1枚 計4枚
-		createCards( deck, ConstGame.NUM_NUMBER_ZERO_CARDS, Card.Type.NUMBER, '0', Card.FLAGSET_COLORS_NUMBERS, new EventNull() );
+		createCards( deck, Card.NUM_NUMBER_ZERO_CARDS, Card.Type.NUMBER, '0', Card.FLAGSET_COLORS_NUMBERS, new EventNull() );
 		//カード[1]～[9] 赤青緑黄 各2枚 計72枚
 		for( int i = 1; i < 10; ++i ){
-			createCards( deck, ConstGame.NUM_NUMBER_WITHOUT_ZERO_CARDS, Card.Type.NUMBER, (char)( (int)'0' + i ), Card.FLAGSET_COLORS_NUMBERS, new EventNull() );
+			createCards( deck, Card.NUM_NUMBER_WITHOUT_ZERO_CARDS, Card.Type.NUMBER, (char)( (int)'0' + i ), Card.FLAGSET_COLORS_NUMBERS, new EventNull() );
 		}
 		//カード[Reverse]、[Skip]、[DrawTwo] 赤青緑黄 各2枚 計24枚
-		char[] symbols = { ConstGame.GLYPH_REVERSE, ConstGame.GLYPH_SKIP, ConstGame.GLYPH_DRAW_TWO };
+		char[] symbols = { Card.GLYPH_REVERSE, Card.GLYPH_SKIP, Card.GLYPH_DRAW_TWO };
 		IEvent[] symbolEvents = { new EventReverse(), new EventSkip(), new EventDrawTwo() };
 		for( int i = 0; i < symbols.length; ++i ){
-			createCards( deck, ConstGame.NUM_SYMBOL_CARDS, Card.Type.SYMBOL, symbols[ i ], Card.FLAGSET_COLORS_SYMBOLS_WITHOUT_WILDS, symbolEvents[ i ] );
+			createCards( deck, Card.NUM_SYMBOL_CARDS, Card.Type.SYMBOL, symbols[ i ], Card.FLAGSET_COLORS_SYMBOLS_WITHOUT_WILDS, symbolEvents[ i ] );
 		}
 		//カード[Wild]、[WildDrawFour] 黒 各4枚 計8枚
-		char[] wilds = { ConstGame.GLYPH_WILD, ConstGame.GLYPH_WILD_DRAW_FOUR };
-		IEvent[] wildEvents = { new EventNull()/* TODO:EventWild */, new EventNull()/* TODO:EventWildDrawFour*/ };
+		char[] wilds = { Card.GLYPH_WILD, Card.GLYPH_WILD_DRAW_FOUR };
+		IEvent[] wildEvents = { new EventWild(), new EventWildDrawFour() };
 		for( int i = 0; i < wilds.length; ++i ){
-			createCards( deck, ConstGame.NUM_SYMBOL_WILDS_CARDS, Card.Type.SYMBOL, wilds[ i ], Card.FLAGSET_COLORS_WILDS, wildEvents[ i ] );
+			createCards( deck, Card.NUM_SYMBOL_WILDS_CARDS, Card.Type.SYMBOL, wilds[ i ], Card.FLAGSET_COLORS_WILDS, wildEvents[ i ] );
 		}
 		//山札をシャッフルする
 		Collections.shuffle( deck );
@@ -380,7 +415,7 @@ public class GameState
 	private void dealFirstCards()
 	{
 		//各プレイヤーにNUM_FIRST_HANDS枚ずつ配る
-		for( int i = 0; i < ConstGame.NUM_FIRST_HANDS; ++i ){
+		for( int i = 0; i < NUM_FIRST_HANDS; ++i ){
 			for( Player p : players ){
 				p.drawCard( deck );
 			}
@@ -405,12 +440,12 @@ public class GameState
 	private void setFirstDiscardPile()
 	{
 		Card card;
-		while( ( card = deck.pop() ).glyph == ConstGame.GLYPH_WILD_DRAW_FOUR ){
+		while( ( card = deck.pop() ).glyph == Card.GLYPH_WILD_DRAW_FOUR ){
 			//ワイルドドローフォーだったらやり直し
 			deck.add( card );
 			Collections.shuffle( deck );
 		}
-		discardPile.add( card );
+		setCardToDiscardPile( card );
 	}
 
 	/**
@@ -428,10 +463,10 @@ public class GameState
 	private boolean playUser( User user )
 	{
 		boolean end = false;
-		List< Boolean > removableHandsList = user.isRemovableCards( getDiscardPileTop() );
+		List< Boolean > removableHandsList = user.isRemovableCards( validColor, validGlyph );
 		//TODO: 操作プレイヤーの処理
 		//手札を出せるかどうか。出せるなら選択処理へ、出せないなら山札から1枚引く。
-		if( user.isPlayable( discardPile.peek() ) ){
+		if( user.isPlayable( validColor, validGlyph ) ){
 			//手札のクリック処理。左クリックで選択状態。右クリックで選択解除。
 			//FIXME 一度に1枚しか選択できない状態にしてあるので、ローカルルール実装時は修正が必要。
 			int selectedCardIndex = -1;
@@ -491,13 +526,12 @@ public class GameState
 		thinkingCount = 0;
 
 		boolean end = true;
-		List< Boolean > removableHandsList = player.isRemovableCards( discardPile.peek() );
-		if( player.isPlayable( discardPile.peek() ) ){
+		List< Boolean > removableHandsList = player.isRemovableCards( validColor, validGlyph );
+		if( player.isPlayable( validColor, validGlyph ) ){
 			//TODO 出せるカードのうち最初に見つかったカードを出す。ちゃんと考えて選んで出せるようにしよう。
 			for( int i = 0; i < removableHandsList.size(); ++i ){
 				if( removableHandsList.get( i ).booleanValue() ){
-					//TODO setCardToDiscardPileメソッドを使おう
-					discardPile.add( player.removeHands( i ) );
+					setCardToDiscardPile( player.removeHands( i ) );
 					if( player.getNumHands() == 1 ){
 						logger.setLog( player.getName() + "「UNO!」" );
 					}
@@ -513,6 +547,12 @@ public class GameState
 		return end;
 	}
 
+	private void setCardToDiscardPile( Card card )
+	{
+		List< Card > cards = new ArrayList< Card >();
+		cards.add( card );
+		setCardToDiscardPile( cards );
+	}
 	/**
 	 * カードを場に出す
 	 * @param card プレイヤーの手札から出されたカード
@@ -522,6 +562,8 @@ public class GameState
 		for( Card card : cards ){
 			discardPile.add( card );
 		}
+		validColor = discardPile.peek().color;
+		validGlyph = discardPile.peek().glyph;
 	}
 
 	/** プレイヤーに山札からカードを引かせる。山札が無くなったら繰り直す。 */
@@ -574,15 +616,6 @@ public class GameState
 		whosePlayingIndex = getNextPlayerIndex();
 	}
 
-	/** 捨て場の一番上にあるカードを返す */
-	public Card getDiscardPileTop()
-	{
-		if( discardPile.isEmpty() ){
-			return null;
-		}
-		return discardPile.peek();
-	}
-
 	/** シーケンス系クラスなどの外部からフェイズを進める */
 	public void advancePhase()
 	{
@@ -619,5 +652,10 @@ public class GameState
 		for( int i = 0; i < rankIndices.size(); ++i ){
 			rankIndices.set( i, pairs.get( i ).y );
 		}
+	}
+
+	public void setValidColor( Card.Color color )
+	{
+		validColor = color;
 	}
 }

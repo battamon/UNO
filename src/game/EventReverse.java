@@ -1,11 +1,30 @@
 package game;
 
+import java.awt.Graphics;
+
 /**
  * リバースカードの効果
  * @author ばったもん
  */
 public class EventReverse implements IEvent
 {
+	@Override
+	public boolean updateByUser()
+	{
+		return true;
+	}
+
+	@Override
+	public boolean updateByNPC()
+	{
+		return true;
+	}
+
+	@Override
+	public void draw( Graphics g )
+	{
+	}
+
 	@Override
 	public boolean hasEvent()
 	{
@@ -17,7 +36,7 @@ public class EventReverse implements IEvent
 	public void activate( GameState state )
 	{
 		state.switchOrderDirection();
-		state.getLogger().setLog( "順番が反対になりました。");
+		state.getLogger().setLog( state.getCurrentPlayer().getName() + "「リバース!!」" );
 		state.getLogger().setLog( "次のプレイヤーは" + state.getNextPlayer().getName() + "です。" );
 	}
 }
