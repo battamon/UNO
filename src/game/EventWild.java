@@ -16,23 +16,21 @@ public class EventWild implements IEvent
 	 * @return 色が選択されたらtrueを返す。
 	 */
 	@Override
-	public boolean updateByUser()
+	public boolean update( GameState state )
 	{
-		if( cc == null ){
-			cc = new ChooseColor();
-		}
-		if( cc != null ){
-			cc.update();
-			if( cc.getSelectedColor() != ChooseColor.NOT_SELECTED ){
-				return true;
+		Player p = state.getCurrentPlayer();
+		if( p.isUser() ){
+			if( cc == null ){
+				cc = new ChooseColor();
 			}
+			if( cc != null ){
+				cc.update();
+				if( cc.getSelectedColor() != ChooseColor.NOT_SELECTED ){
+					return true;
+				}
+			}
+			return false;
 		}
-		return false;
-	}
-
-	@Override
-	public boolean updateByNPC()
-	{
 		return true;
 	}
 

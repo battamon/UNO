@@ -129,8 +129,8 @@ public class Player
 		for( int i = 0; i < hands.size(); ++i ){
 			Card card = hands.get( i );
 			//出せるパターンならremovablesにtrueをセット
-			if( card.color == Card.Color.BLACK				//出すカードが黒
-					|| color == Card.Color.BLACK	//出ているカードが黒
+			if( card.color == Card.Color.BLACK	//出すカードが黒
+					|| color == Card.Color.BLACK	//TODO: 場の色が黒 ディーラーを決めればこれは要らない
 					|| card.color == color		//色が同じ
 					|| card.glyph == glyph ){	//数字記号が同じ
 				removables.set( i, Boolean.TRUE );
@@ -244,6 +244,17 @@ public class Player
 	{
 		score += fluctuationPoint;
 		fluctuationPoint = 0;
+	}
+
+	/**
+	 * カードを一枚手札に加える
+	 * @param card カード
+	 */
+	public void obtainCard( Card card )
+	{
+		hands.add( card );
+		Collections.sort( hands, new CardColorComparator() );
+		adjustPlayerHandsPosition();
 	}
 
 	//デバッグ用

@@ -80,6 +80,8 @@ public class GameState
 	private Card.Color validColor;
 	/** 現在の場で有効なカード文字 */
 	private char validGlyph;
+	/** 一つ前の場で有効なカード色 */
+	private Card.Color prevValidColor;
 	/** イベント。イベント発生中にオブジェクトが代入される。 */
 	private IEvent activeEvent;
 
@@ -142,8 +144,7 @@ public class GameState
 			case EVENT:
 			{
 				//ユーザーかNPCかで呼び出すupdateメソッドを切り替える
-				boolean recieved = getCurrentPlayer().isUser() ? activeEvent.updateByUser() : activeEvent.updateByNPC();
-				if( recieved ){
+				if( activeEvent.update( this ) ){
 					activeEvent.activate( this );
 					advanceTurn();
 					activeEvent = null;
@@ -358,6 +359,9 @@ public class GameState
 		thinkingCount = 0;
 		waitingCount = 0;
 		activeEvent = null;
+		validColor = Card.Color.BLACK;
+		validGlyph = Card.GLYPH_WILD_DRAW_FOUR;
+		prevValidColor = Card.Color.BLACK;
 	}
 
 	/**
@@ -528,17 +532,19 @@ public class GameState
 		boolean end = true;
 		List< Boolean > removableHandsList = player.isRemovableCards( validColor, validGlyph );
 		if( player.isPlayable( validColor, validGlyph ) ){
-			//TODO 出せるカードのうち最初に見つかったカードを出す。ちゃんと考えて選んで出せるようにしよう。
+			//TODO AI。カード選択。今はとりあえずランダム。
+			List< Integer > validIndices = new ArrayList< Integer >();
 			for( int i = 0; i < removableHandsList.size(); ++i ){
 				if( removableHandsList.get( i ).booleanValue() ){
-					setCardToDiscardPile( player.removeHands( i ) );
-					if( player.getNumHands() == 1 ){
-						logger.setLog( player.getName() + "「UNO!」" );
-					}
-					end = true;
-					break;
+					validIndices.add( Integer.valueOf( i ) );
 				}
 			}
+			int selectedIndex = (int)( Math.random() * validIndices.size() );
+			setCardToDiscardPile( player.removeHands( validIndices.get( selectedIndex ).intValue() ) );
+			if( player.getNumHands() == 1 ){
+				logger.setLog( player.getName() + "「UNO!」" );
+			}
+			end = true;
 		}else{
 			drawCard( player );
 			logger.setLog( player.getName() + "は山札から1枚引きました。" );
@@ -562,8 +568,9 @@ public class GameState
 		for( Card card : cards ){
 			discardPile.add( card );
 		}
-		validColor = discardPile.peek().color;
+		setValidColor( discardPile.peek().color );
 		validGlyph = discardPile.peek().glyph;
+
 	}
 
 	/** プレイヤーに山札からカードを引かせる。山札が無くなったら繰り直す。 */
@@ -654,8 +661,26 @@ public class GameState
 		}
 	}
 
+	/** 有効な色を指定する。カードが出るたびに色情報を更新するほか、Wild系の効果で書き換えることもある。 */
 	public void setValidColor( Card.Color color )
 	{
+		prevValidColor = validColor;
 		validColor = color;
 	}
+
+	/** 場に見えているカードの一枚下にある色を返す。WildDrawFourのチャレンジに必要。 */
+	public Card.Color getCollectColor()
+	{
+		return prevValidColor;
+	}
+
+	/** 捨て場の一番上にあるカードを取り出す。WildDrawFourのチャレンジに成功した場合に呼ばれる。 */
+	public Card takeBackCard()
+	{
+		Card card = discardPile.pop();
+		setValidColor( prevValidColor );
+		validGlyph = discardPile.peek().glyph;
+		return card;
+	}
+
 }

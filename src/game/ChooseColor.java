@@ -18,7 +18,7 @@ import base.MouseHitTestTask;
  */
 public class ChooseColor
 {
-	//色
+	//実際のカードの色
 	public static final Color RED = new Color( 255, 0, 0 );
 	public static final Color BLUE = new Color( 0, 71, 235 );
 	public static final Color GREEN = new Color( 77, 139, 0 );
@@ -96,5 +96,17 @@ public class ChooseColor
 		if( buttonGreen.isClicked() ) return Card.Color.GREEN;
 		if( buttonYellow.isClicked() ) return Card.Color.YELLOW;
 		return NOT_SELECTED;
+	}
+
+	/** カードの色から実際の色データを取得 */
+	public static Color getColor( Card.Color color )
+	{
+		switch( color ){
+			case RED: return RED;
+			case BLUE: return BLUE;
+			case GREEN: return GREEN;
+			case YELLOW: return YELLOW;
+		}
+		return Color.BLACK;
 	}
 }

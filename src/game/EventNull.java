@@ -10,13 +10,7 @@ import java.awt.Graphics;
 public class EventNull implements IEvent
 {
 	@Override
-	public boolean updateByUser()
-	{
-		return true;
-	}
-
-	@Override
-	public boolean updateByNPC()
+	public boolean update( GameState state )
 	{
 		return true;
 	}

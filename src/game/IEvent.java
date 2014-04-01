@@ -10,15 +10,10 @@ import java.awt.Graphics;
 public interface IEvent
 {
 	/** 
-	 * イベント発生中の処理(ユーザー用)<br>
+	 * イベント発生中の処理<br>
 	 * イベントの終了を知らせるときはtrueを返す。
 	*/
-	public abstract boolean updateByUser();
-	/** 
-	 * イベント発生中の処理(NPC用)<br>
-	 * イベントの終了を知らせるときはtrueを返す。
-	*/
-	public abstract boolean updateByNPC();
+	public abstract boolean update( GameState state );
 
 	public abstract void draw( Graphics g );
 
