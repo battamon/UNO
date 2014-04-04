@@ -44,7 +44,11 @@ public class GameState
 	/** メニューボタンの表示領域 */
 	public static final Rectangle BUTTON_MENU_AREA = new Rectangle( 570, 410, 60, 60 );
 	/** 初期の手札枚数 */
-	public static final int NUM_FIRST_HANDS = 7;
+	public static final int NUM_FIRST_HANDS = 3;
+	/** ゲームオーバーからリザルト画面移行までのインターバル */
+	public static final int GAME_OVER_TO_RESULT_INTERVAL = 60;
+	/** ユーザーが山札からカードを引いたり、ワイルドドローフォーのチャレンジ受付画面を出すまでのインターバル */
+	public static final int WAITING_INTERVAL = 30;
 	
 	//ここからフィールド
 	/** 背景画像ハンドル */
@@ -66,9 +70,7 @@ public class GameState
 	private int whosePlayingIndex = 0;
 	/** 順番の進む方向 */
 	private boolean clockwise = true;
-	/** TODO COM用フレームカウント。最終的に要らないかも */
-	private int thinkingCount = 0;
-	/** TODO Resultフェイズから抜けるカウント。ボタンクリックで抜けるようにする？ */
+	/** Resultフェイズから抜けるカウント */
 	private int waitingCount = 0;
 	/** ログ表示クラス */
 	private GameLog logger;
@@ -128,7 +130,6 @@ public class GameState
 					if( numAfterHands == 0 ){
 						logger.setLog( p.getName() + "の手札が無くなりました。" );
 						logger.setLog( "ゲーム終了。" );
-						thinkingCount = 0;
 						phase = Phase.GAME_OVER;
 					//カード効果有無判定
 					}else if( numAfterHands < numBiforeHands && discardPile.peek().event.hasEvent() ){
@@ -143,7 +144,6 @@ public class GameState
 			}
 			case EVENT:
 			{
-				//ユーザーかNPCかで呼び出すupdateメソッドを切り替える
 				if( activeEvent.update( this ) ){
 					activeEvent.activate( this );
 					advanceTurn();
@@ -154,7 +154,7 @@ public class GameState
 			}
 			case GAME_OVER: //1ゲーム終了。RESULTフェイズまでのインターバル。
 				++waitingCount;
-				if( waitingCount == 60 ){
+				if( waitingCount == GAME_OVER_TO_RESULT_INTERVAL ){
 					waitingCount = 0;
 					++gameCount;
 					phase = Phase.RESULT;
@@ -254,11 +254,11 @@ public class GameState
 		for( int i = 0; i < players.size(); ++i ){
 			Player p = players.get( rankIndices.get( i ) );
 			int colIndex = 0;
-			String text = ( i + 1 ) + "";
+			String textRank = p.getRank() + "";
 			//順位
 			g.setFont( new Font( prevFont.getFontName(), Font.PLAIN, 18 ) );
 			x = viewPos.x + tablePos.x;
-			ImageManager.drawString( g, text, x, y, colWidths[ colIndex ], rowHeight, ImageManager.Align.CENTER );
+			ImageManager.drawString( g, textRank, x, y, colWidths[ colIndex ], rowHeight, ImageManager.Align.CENTER );
 			//名前
 			g.setFont( new Font( prevFont.getFontName(), Font.PLAIN, 14 ) );
 			x += colWidths[ colIndex++ ];
@@ -323,8 +323,7 @@ public class GameState
 	{
 		//プレイヤー領域の確保
 		players = new ArrayList< Player >();
-		//TODO:とりあえずプレイヤーの名前を適当に決める
-		players.add( new User( "user" ) );
+		players.add( new User( "あなた" ) );
 		int nameNumber = 0;
 		for( int i = 1; i < numPlayers; ++i ){
 			players.add( new Player( "NPC_" + nameNumber++ ) );
@@ -343,7 +342,6 @@ public class GameState
 
 	private void reset()
 	{
-		//TODO カードの回収。いったん全部消去して再生成する方法もある。
 		while( !discardPile.isEmpty() ){
 			deck.add( discardPile.pop() );
 		}
@@ -356,7 +354,6 @@ public class GameState
 		clockwise = true;
 		Collections.shuffle( deck );
 		logger.clear();
-		thinkingCount = 0;
 		waitingCount = 0;
 		activeEvent = null;
 		validColor = Card.Color.BLACK;
@@ -431,7 +428,7 @@ public class GameState
 	 */
 	private void decideOrder()
 	{
-		//TODO:とりあえずシャッフルで決める。
+		//FIXME とりあえずシャッフルで決める。正しくはディーラーを決めよう。
 		Collections.shuffle( players );
 		for( int i = 0; i < players.size(); ++i ){
 			players.get( i ).setOrder( i );
@@ -460,7 +457,6 @@ public class GameState
 	 */
 	private boolean play( Player player )
 	{
-		//FIXME ユーザーとNPCの共通処理はこのメソッドでできるだけくくろう
 		return ( player.isUser() ) ? playUser( (User)player ) : playNPC( player );
 	}
 
@@ -468,7 +464,6 @@ public class GameState
 	{
 		boolean end = false;
 		List< Boolean > removableHandsList = user.isRemovableCards( validColor, validGlyph );
-		//TODO: 操作プレイヤーの処理
 		//手札を出せるかどうか。出せるなら選択処理へ、出せないなら山札から1枚引く。
 		if( user.isPlayable( validColor, validGlyph ) ){
 			//手札のクリック処理。左クリックで選択状態。右クリックで選択解除。
@@ -509,10 +504,14 @@ public class GameState
 				}
 			}
 		}else{
-			//山札からカードを引く。 FIXME 標準ルールはカードを引いたら手番は終了するが、ローカルルールでは修正が必要かも。
-			drawCard( user );
-			logger.setLog( user.getName() + "は山札から1枚引きました。" );
-			end = true;
+			++waitingCount;
+			if( waitingCount == WAITING_INTERVAL ){
+				waitingCount = 0;
+				//山札からカードを引く。 TODO 標準ルールはカードを引いたら手番は終了するが、ローカルルールでは修正が必要かも。
+				drawCard( user );
+				logger.setLog( user.getName() + "は山札から1枚引きました。" );
+				end = true;
+			}
 		}
 
 		if( end ){
@@ -524,33 +523,20 @@ public class GameState
 
 	private boolean playNPC( Player player )
 	{
-		//TODO 手番が回ってきたら少し待つ。アニメーション入れたらこの処理も要らなくなる
-		++thinkingCount;
-		if( thinkingCount < 30 ) return false;
-		thinkingCount = 0;
-
-		boolean end = true;
-		List< Boolean > removableHandsList = player.isRemovableCards( validColor, validGlyph );
-		if( player.isPlayable( validColor, validGlyph ) ){
-			//TODO AI。カード選択。今はとりあえずランダム。
-			List< Integer > validIndices = new ArrayList< Integer >();
-			for( int i = 0; i < removableHandsList.size(); ++i ){
-				if( removableHandsList.get( i ).booleanValue() ){
-					validIndices.add( Integer.valueOf( i ) );
-				}
-			}
-			int selectedIndex = (int)( Math.random() * validIndices.size() );
-			setCardToDiscardPile( player.removeHands( validIndices.get( selectedIndex ).intValue() ) );
+		AI ai = player.getAI();
+		if( !ai.think() ) return false;
+		
+		List< Integer > cards = ai.chooseCardIndecis( this );
+		if( !cards.isEmpty() ){
+			setCardToDiscardPile( player.removeHands( cards ) );
 			if( player.getNumHands() == 1 ){
 				logger.setLog( player.getName() + "「UNO!」" );
 			}
-			end = true;
 		}else{
 			drawCard( player );
 			logger.setLog( player.getName() + "は山札から1枚引きました。" );
-			end = true;
 		}
-		return end;
+		return true;
 	}
 
 	private void setCardToDiscardPile( Card card )
@@ -656,8 +642,19 @@ public class GameState
 				}
 			}
 		}
+		//順位を振る
+		int rank = 1;
+		int prevScore = 0;
 		for( int i = 0; i < rankIndices.size(); ++i ){
-			rankIndices.set( i, pairs.get( i ).y );
+			int currentScore = pairs.get( i ).x;
+			int playerIndex = pairs.get( i ).y;
+			if( currentScore < prevScore ){
+				++rank;
+			}
+			rankIndices.set( i, playerIndex );
+			players.get( playerIndex ).setRank( rank );
+
+			prevScore = currentScore;
 		}
 	}
 
@@ -683,4 +680,20 @@ public class GameState
 		return card;
 	}
 
+	/** 現在有効な場の色を返す */
+	public Card.Color getCurrentValidColor()
+	{
+		return validColor;
+	}
+
+	/** 現在有効な場の文字を返す */
+	public char getCurrentValidGlyph()
+	{
+		return validGlyph;
+	}
+
+	public int getNumPlayers()
+	{
+		return players.size();
+	}
 }

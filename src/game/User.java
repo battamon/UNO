@@ -26,6 +26,7 @@ public class User extends Player
 	{
 		super( name );
 		user = true;
+		ai = null;
 		recreateVisibleHands();
 	}
 
@@ -99,14 +100,14 @@ public class User extends Player
 	 */
 	public List< Card > removeSelectedCards()
 	{
-		List< Card > cards = new ArrayList< Card >();
+		List< Integer > selects = new ArrayList< Integer >();
 		int handsIndex = 0;
 		MouseHitTestTask vHands = new MouseHitTestTask();
 		for( int i = 0; i < visibleHands.size(); ++i ){
 			CardUserHand cuh = (CardUserHand)visibleHands.get( i );
 			if( cuh.isSelected() ){
 				//選択されているカードなら手札から取り除き、カードは戻り値用変数に入れる。
-				cards.add( removeHands( handsIndex ) );
+				selects.add( Integer.valueOf( handsIndex ) );
 			}else{
 				//選択されていないなら新しいvisibleHands変数(vHands)に移し変える。
 				vHands.add( cuh );
@@ -116,10 +117,10 @@ public class User extends Player
 		}
 		//現状の手札に合わせたvisibleHandsに更新
 		visibleHands = vHands;
-
 		//手札のカード位置を調整
 		adjustUserHandsPosition();
-		return cards;
+		//選んだカードを取り除く
+		return removeHands( selects );
 	}
 
 	/**

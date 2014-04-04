@@ -29,7 +29,6 @@ public class GameLog
 	 */
 	public void view( Graphics g )
 	{
-		//TODO 改行やフォントサイズの変更などさまざまな問題点の修正が必要
 		Font font = g.getFont();
 		Color prevColor = g.getColor();
 		g.setColor( Color.BLACK );
@@ -37,7 +36,7 @@ public class GameLog
 		int rowSize = font.getSize() + space;
 		int numViewRow = VIEW_AREA.height / rowSize;
 		int x = VIEW_AREA.x + space;
-		int y = VIEW_AREA.y + space + font.getSize();	//フォントサイズを足すのはベースラインにあわせるため
+		int y = VIEW_AREA.y + font.getSize();	//フォントサイズを足すのはベースラインにあわせるため
 		for( int i = logs.size() < numViewRow ? 0 : ( logs.size() - numViewRow ); i < logs.size(); ++i ){
 			g.drawString( logs.get( i ), x, y );
 			y += rowSize;

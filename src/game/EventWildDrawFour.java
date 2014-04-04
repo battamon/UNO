@@ -42,6 +42,8 @@ public class EventWildDrawFour implements IEvent
 	private boolean judged = false;
 	/** チャレンジ成功フラグ */
 	private boolean success = false;
+	/** チャレンジウィンドウが出るまでのインターバルカウント */
+	private int count = 0;
 
 	/**
 	 * 色選択画面を出してユーザーに選ばせる。<br>
@@ -59,18 +61,15 @@ public class EventWildDrawFour implements IEvent
 			case CHOOSE_COLOR:	//色選択フェイズ
 			{
 				boolean chosen = false;
-				if( cp.isUser() ){
+				if( cp.isUser() ){	//ユーザーがワイルドドローフォーカードを出したとき
 					if( cc != null ){
 						cc.update();
 						if( ( selectedColor = cc.getSelectedColor() ) != ChooseColor.NOT_SELECTED ){
 							chosen = true;
 						}
 					}
-				}else{
-					//TODO NPCが色を選択する。AIはどこかでまとめたほうがよさそう。
-					Card.Color[] colors = { Card.Color.RED, Card.Color.BLUE, Card.Color.GREEN, Card.Color.YELLOW };
-					selectedColor = colors[ (int)( Math.random() * colors.length ) ];
-					ch = new Challenge();
+				}else{	//NPCが出したとき
+					selectedColor = cp.getAI().chooseColor( state );
 					chosen = true;
 				}
 				if( chosen ){
@@ -81,8 +80,14 @@ public class EventWildDrawFour implements IEvent
 				break;
 			}
 			case SELECT_CHALLENGE:	//チャレンジ決定フェイズ
-				if( np.isUser() ){
-					if( ch != null ){
+				if( np.isUser() ){	//ユーザーがチャレンジの権利を持っているとき
+					if( ch == null ){
+						++count;	//ウィンドウを出すまで少し時間をおく
+						if( count == GameState.WAITING_INTERVAL ){
+							ch = new Challenge();
+							count = 0;
+						}
+					}else{
 						ch.update();
 						Challenge.Pushed pushed = ch.getButtonPushed();
 						if( pushed != Challenge.Pushed.NOT_PUSHED ){
@@ -90,11 +95,12 @@ public class EventWildDrawFour implements IEvent
 							phase = Phase.CHALLENGE;
 						}
 					}
-				}else{
-					//TODO NPCがチャレンジするかどうか決定する。AIはどこかでまとめたほうがよさそう。
-					challenge = (int)( Math.random() * 2 ) == 0 ? false : true;
-					ch = null;
-					phase = Phase.CHALLENGE;
+				}else{	//NPCがチャレンジの権利を持っているとき
+					if( np.getAI().think() ){	//NPCの色選択までの猶予時間を取る
+						challenge = np.getAI().triesChallenge();
+						ch = null;
+						phase = Phase.CHALLENGE;
+					}
 				}
 				break;
 			case CHALLENGE:
@@ -194,6 +200,7 @@ public class EventWildDrawFour implements IEvent
 		challenge = false;
 		judged = false;
 		success = false;
+		count = 0;
 	}
 }
 
@@ -285,7 +292,6 @@ class Challenge
 				task.draw( g );
 				break;
 			case RESULT:
-				//TODO カード表示のレイアウトを考えよう。
 				//キャプション
 				g.setColor( Color.BLACK );
 				g.setFont( new Font( prevFont.getName(), Font.PLAIN, 24 ) );
@@ -302,7 +308,7 @@ class Challenge
 				g.setColor( ChooseColor.getColor( collectColor ) );
 				if( overlappedWidth > 0 ){	//重ねて表示
 					//色背景
-					g.fillRect( SHOW_CARD_AREA.x + sideSpace, SHOW_CARD_AREA.y, limitedWidth, SHOW_CARD_AREA.height );
+					g.fillRect( SHOW_CARD_AREA.x + sideSpace, SHOW_CARD_AREA.y, limitedWidth + colorFrameThickness * 2, SHOW_CARD_AREA.height );
 					g.setColor( new Color( 0, 0, 0, 64 ) );	//色違いのカードを暗くするため
 					int ox = SHOW_CARD_AREA.x + sideSpace + colorFrameThickness;
 					int x = ox;
@@ -317,7 +323,11 @@ class Challenge
 					}
 					//最後の1枚の微調整
 					x = ox + limitedWidth - showCardWidth;
-					ImageManager.draw( g, challengedHands.get( numHands - 1 ).getImageHandle(), x, y, showCardWidth, showCardHeight );
+					Card lastCard = challengedHands.get( numHands - 1 );
+					ImageManager.draw( g, lastCard.getImageHandle(), x, y, showCardWidth, showCardHeight );
+					if( lastCard.color != collectColor ){
+						g.fillRect( x, y, showCardWidth, showCardHeight );
+					}
 				}else{	//並べて表示
 					//色背景
 					g.fillRect( SHOW_CARD_AREA.x + ( SHOW_CARD_AREA.width - numHands * showCardWidth ) /2 - colorFrameThickness, SHOW_CARD_AREA.y, numHands * showCardWidth + colorFrameThickness * 2, SHOW_CARD_AREA.height );

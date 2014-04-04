@@ -31,7 +31,8 @@ public class EventWild implements IEvent
 			}
 			return false;
 		}
-		return true;
+
+		return p.getAI().think();	//NPCなら思考時間だけ待ってから進める。
 	}
 
 	@Override
@@ -51,16 +52,15 @@ public class EventWild implements IEvent
 	@Override
 	public void activate( GameState state )
 	{
+		Player p = state.getCurrentPlayer();
 		Card.Color selectedColor;
 		if( cc != null ){
 			selectedColor = cc.getSelectedColor();
 			cc = null;
 		}else{
-			//TODO NPCが色を選択する。AIはどこかでまとめたほうがよさそう。
-			Card.Color[] colors = { Card.Color.RED, Card.Color.BLUE, Card.Color.GREEN, Card.Color.YELLOW };
-			selectedColor = colors[ (int)( Math.random() * colors.length ) ];
+			selectedColor = p.getAI().chooseColor( state );
 		}
 		state.setValidColor( selectedColor );
-		state.getLogger().setLog( state.getCurrentPlayer().getName() + "「ワイルド!![" + selectedColor + "]」" );
+		state.getLogger().setLog( p.getName() + "「ワイルド!![" + selectedColor + "]」" );
 	}
 }

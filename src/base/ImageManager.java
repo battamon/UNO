@@ -188,6 +188,19 @@ public class ImageManager
 	}
 
 	/**
+	 * 左上を原点とする文字描画を行う。x座標はalignの基準となる。
+	 * @param g Graphicsオブジェクト
+	 * @param text 描画したい文字列
+	 * @param x alignの基準となるx座標
+	 * @param y 描画開始位置y
+	 * @param align 描画位置の基準
+	 */
+	public static void drawString( Graphics g, String text, int x, int y, Align align )
+	{
+		drawString( g, text, x, y, 0, 0, align, Align.DEFAULT );
+	}
+
+	/**
 	 * 範囲を指定して位置調整しつつ文字列描画を行う。
 	 * @param g Graphicsオブジェクト
 	 * @param text 描画したい文字列

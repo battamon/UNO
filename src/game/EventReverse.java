@@ -31,6 +31,9 @@ public class EventReverse implements IEvent
 	{
 		state.switchOrderDirection();
 		state.getLogger().setLog( state.getCurrentPlayer().getName() + "「リバース!!」" );
+		if( state.getNumPlayers() <= 2 ){
+			state.advanceTurn();
+		}
 		state.getLogger().setLog( "次のプレイヤーは" + state.getNextPlayer().getName() + "です。" );
 	}
 }

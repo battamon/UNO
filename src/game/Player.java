@@ -41,10 +41,12 @@ public class Player
 	private int score;
 	/** 増減点 */
 	private int fluctuationPoint;
-	/** 順番 */
-	private int order;
 	/** ユーザーかNPCか */
 	protected boolean user;
+	/** 順位 */
+	private int rank;
+	/** 意思決定クラス(AI) */
+	protected AI ai;
 
 	/** 情報画面位置 */
 	private Rectangle infoRect;
@@ -58,10 +60,12 @@ public class Player
 		score = 0;
 		fluctuationPoint = 0;
 		user = false;
+		rank = 1;
 		infoRect = new Rectangle();
 		infoRect.width = INFO_WIDTH;
 		infoRect.height = INFO_HEIGHT;
 		handPositions = new ArrayList< Point >();
+		ai = new AI( this );
 	}
 
 	public void update()
@@ -76,10 +80,25 @@ public class Player
 			Point pos = handPositions.get( i );
 			ImageManager.draw( g, hImageCardBack, pos.x, pos.y, INFO_CARD_WIDTH, INFO_CARD_HEIGHT );
 		}
-		//TODO:サンプル描画
 		Color c = g.getColor();
 		g.setColor( Color.BLACK );
-		g.drawString( toString(), infoRect.x + 2, infoRect.y + 12 );
+		int sideSpace = 2;
+		int rowHeight = 12;
+		//名前
+		int x = infoRect.x + sideSpace;
+		int y = infoRect.y - 2;
+		ImageManager.drawString( g, name, x, y );
+		//順位
+		x = infoRect.x + infoRect.width - sideSpace;
+		ImageManager.drawString( g, rank + "位", x, y, ImageManager.Align.RIGHT );
+		//手札数
+		x = infoRect.x + sideSpace;
+		y += rowHeight + 2;
+		ImageManager.drawString( g, "残り　" + hands.size() + "枚", x, y );
+		//点数
+		x = infoRect.x + infoRect.width - sideSpace;
+		ImageManager.drawString( g, score + "点", x, y, ImageManager.Align.RIGHT );
+
 		g.setColor( c );
 	}
 
@@ -94,7 +113,6 @@ public class Player
 	/** 順番を設定する。ついでに情報画面の位置も計算しとく。 */
 	public void setOrder( int order )
 	{
-		this.order = order;
 		infoRect.x = INFO_POS_ORIGIN_X + INFO_POS_ALIGN_X * ( order % NUM_INFO_COLUMN );
 		infoRect.y = INFO_POS_ORIGIN_Y + INFO_POS_ALIGN_Y * ( order / NUM_INFO_COLUMN );
 		adjustPlayerHandsPosition();
@@ -147,12 +165,15 @@ public class Player
 	 * @param index 手札のインデックス
 	 * @return 指定されたカード
 	 */
-	public Card removeHands( int index )
+	public List< Card > removeHands( List< Integer > selectedCardIndecis )
 	{
 		//TODO 1枚だけ返す実装だが、ローカルルールによっては複数枚返さないとならない場合も？
-		Card card = hands.remove( index );
+		List< Card > cards = new ArrayList< Card >();
+		for( Integer i : selectedCardIndecis ){
+			cards.add( hands.remove( i.intValue() ) );
+		}
 		adjustPlayerHandsPosition();
-		return card;
+		return cards;
 	}
 
 	/**
@@ -161,13 +182,10 @@ public class Player
 	 */
 	public List< Card > prepareNextGame()
 	{
-		List< Card > cards = new ArrayList< Card >();
-		while( !hands.isEmpty() ){
-			cards.add( removeHands( 0 ) );
-		}
+		//点数を清算して
 		addScore();
-		order = 0;
-		return cards;
+		//手札をすべて返す
+		return hands;
 	}
 
 	public String getName()
@@ -255,6 +273,24 @@ public class Player
 		hands.add( card );
 		Collections.sort( hands, new CardColorComparator() );
 		adjustPlayerHandsPosition();
+	}
+
+	/** 順位を設定する */
+	public void setRank( int rank )
+	{
+		this.rank = rank;
+	}
+
+	/** 順位を取得する */
+	public int getRank()
+	{
+		return rank;
+	}
+
+	/** AIを取得する */
+	public AI getAI()
+	{
+		return ai;
 	}
 
 	//デバッグ用

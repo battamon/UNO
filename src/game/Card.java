@@ -173,7 +173,7 @@ public class Card
 		return 0;
 	}
 
-	//TODO:デバッグ用？
+	//デバッグ用？
 	@Override
 	public String toString()
 	{
