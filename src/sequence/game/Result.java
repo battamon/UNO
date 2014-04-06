@@ -2,14 +2,12 @@ package sequence.game;
 
 import game.GameState;
 
-import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Rectangle;
 
 import base.Button;
 import base.ISequence;
 import base.ImageManager;
-import base.MainPanel;
 import base.MouseHitTestTask;
 
 public class Result implements ISequence
@@ -47,8 +45,13 @@ public class Result implements ISequence
 			System.out.println( "予期せぬ親シーケンスから呼び出されました。" );
 		}
 		if( buttonNext.isClicked() ){
-			gameState.advancePhase();
-			next = GameParent.NEXT_SEQUENCE_PLAY;
+			if( gameState.isEndOfTheMatch() ){
+				//ゲーム終了
+				next = GameParent.NEXT_SEQUENCE_TITLE;
+			}else{
+				gameState.advancePhase();
+				next = GameParent.NEXT_SEQUENCE_PLAY;
+			}
 		}
 		return next;
 	}

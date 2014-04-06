@@ -224,7 +224,7 @@ class Challenge
 		NOT_PUSHED,
 	}
 	private static final Dimension VIEW_SIZE = new Dimension( 400, 300 );
-	private static final Point VIEW_POS = new Point( ( MainPanel.WIDTH - VIEW_SIZE.width ) / 2, ( MainPanel.HEIGHT - VIEW_SIZE.height ) / 2 );
+	private static final Point VIEW_POS = new Point( ( MainPanel.WIDTH - VIEW_SIZE.width ) / 2, 150 );
 	private static final Rectangle CAPTION_AREA = new Rectangle( VIEW_POS.x, VIEW_POS.y, VIEW_SIZE.width, VIEW_SIZE.height / 5 * 2 );
 	private static final Rectangle SHOW_CARD_AREA = new Rectangle( VIEW_POS.x, CAPTION_AREA.y + CAPTION_AREA.height, VIEW_SIZE.width, VIEW_SIZE.height / 5 * 1 );
 	private static final Dimension BUTTON_SIZE = new Dimension( 80, 50 );

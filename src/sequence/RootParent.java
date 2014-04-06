@@ -1,5 +1,7 @@
 package sequence;
 
+import game.RuleBook;
+
 import java.awt.Graphics;
 
 import sequence.game.GameParent;
@@ -22,11 +24,14 @@ public class RootParent implements ISequence
 
 	/** 子シーケンス */
 	private ISequence child = null;
+	/** ルール設定オブジェクト */
+	private RuleBook ruleBook;
 	
 	public RootParent()
 	{
 		//最初はタイトル画面から
 		child = new Title();
+		ruleBook = new RuleBook();
 	}
 
 	/**
@@ -48,11 +53,11 @@ public class RootParent implements ISequence
 				break;
 			case NEXT_SEQUENCE_GAME_PARENT:
 				releaseChild();
-				child = new GameParent();
+				child = new GameParent( ruleBook );
 				break;
 			case NEXT_SEQUENCE_SETUP:
 				releaseChild();
-				child = new Setup();
+				child = new Setup( ruleBook );
 				break;
 			case NEXT_SEQUENCE_EXIT:
 				ret = MainPanel.LOOP_END;

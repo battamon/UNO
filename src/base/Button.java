@@ -12,19 +12,22 @@ import java.awt.Rectangle;
  */
 public class Button implements IHitTestObject
 {
-	/** ボタンの位置、サイズ。 */
-	private Rectangle rect;
-	/** ボタンの画像 */
-	private int hImage;
-
 	//IHitTestObject関連
 	/** 直接ヒットした場合のフラグ */
 	private boolean hitSurfaceFlag;
 	/** 間接ヒットした場合のフラグ。今回はボタンの上に他のオブジェクトが乗っからない想定なので要らない。 */
 	//private boolean hitBackFlag;
 
-	/** //ボタンがクリックされたらtrue */
+	/** ボタンの位置、サイズ。 */
+	private Rectangle rect;
+	/** ボタンの画像 */
+	private int hImage;
+	/** ハイライトの有無 */
+	private boolean highlight;
+	/** ボタンがクリックされた瞬間だったらtrue */
 	private boolean clicked;
+	/** オンオフ */
+	private boolean on;
 
 	/**
 	 * コンストラクタ
@@ -49,6 +52,8 @@ public class Button implements IHitTestObject
 		//hitBackFlag = false;
 		clicked = false;
 		hImage = ImageManager.NO_HANDLE;
+		highlight = true;
+		on = false;
 	}
 
 	@Override
@@ -60,6 +65,7 @@ public class Button implements IHitTestObject
 		if( hitSurfaceFlag ){
 			if( Input.getClicked( Input.MOUSE_BUTTON_LEFT ) ){
 				clicked = true;
+				on = !on;
 			}
 		}
 	}
@@ -72,7 +78,7 @@ public class Button implements IHitTestObject
 		if( hImage != ImageManager.NO_HANDLE ){
 			ImageManager.draw( g, hImage, rect.x, rect.y );
 		}
-		if( hitSurfaceFlag ){
+		if( hitSurfaceFlag && highlight ){
 			prevColor = g.getColor();
 			g.setColor( new Color( 0, 255, 255, 64 ) );
 			g.fillRect( rect.x, rect.y, rect.width, rect.height );
@@ -114,9 +120,7 @@ public class Button implements IHitTestObject
 		//hitBackFlag = true;
 	}
 
-	/**
-	 * hitTestに失敗した場合に外部(MouseHitTestTask)から呼び出される。
-	 */
+	/** hitTestに失敗した場合に外部(MouseHitTestTask)から呼び出される。 */
 	@Override
 	public void notHit()
 	{
@@ -124,13 +128,39 @@ public class Button implements IHitTestObject
 		//hitBackFlag = false;
 	}
 
+	/** クリックされたかどうか */
 	public boolean isClicked()
 	{
 		return clicked;
 	}
 
+	/** ボタン領域に表示する画像をセットする。 */
 	public void setImageHandle( int imageHandle )
 	{
 		hImage = imageHandle;
+	}
+
+	/** ハイライトするかどうかを決める。デフォルトではtrue。 */
+	public void setHighlight( boolean l )
+	{
+		highlight = l;
+	}
+
+	/** ボタンがオンかどうかを返す。 */
+	public boolean isOn()
+	{
+		return on;
+	}
+
+	/** ボタンをオンにする。 */
+	public void on()
+	{
+		on = true;
+	}
+
+	/** ボタンをオフにする。 */
+	public void off()
+	{
+		on = false;
 	}
 }

@@ -21,8 +21,8 @@ public class CardVisible implements IHitTestObject
 	protected Rectangle rect;
 	/** 当たり判定フラグ(表) */
 	private boolean hitSurfaceFlag;
-	/** 当たり判定フラグ(裏) */
-	private boolean hitBackFlag;
+	/** 当たり判定フラグ(裏)。使わない */
+	//private boolean hitBackFlag;	
 	/** 左クリックフラグ */
 	private boolean leftClicked;
 	/** 右クリックフラグ */
@@ -32,7 +32,8 @@ public class CardVisible implements IHitTestObject
 	{
 		this.card = card;
 		rect = new Rectangle( 0, 0, Card.WIDTH, Card.HEIGHT );
-		hitSurfaceFlag = hitBackFlag = false;
+		hitSurfaceFlag = false;
+		//hitBackFlag = false;
 	}
 
 	@Override
@@ -101,7 +102,7 @@ public class CardVisible implements IHitTestObject
 	@Override
 	public void hitSurface()
 	{
-		hitBackFlag = false;
+		//hitBackFlag = false;
 		hitSurfaceFlag = true;
 	}
 
@@ -109,12 +110,13 @@ public class CardVisible implements IHitTestObject
 	public void hitBack()
 	{
 		hitSurfaceFlag = false;
-		hitBackFlag = true;
+		//hitBackFlag = true;
 	}
 
 	@Override
 	public void notHit()
 	{
-		hitSurfaceFlag = hitBackFlag = false;
+		hitSurfaceFlag = false;
+		//hitBackFlag = false;
 	}
 }

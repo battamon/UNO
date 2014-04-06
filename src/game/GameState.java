@@ -55,9 +55,9 @@ public class GameState
 	private static final int hFrameImage;
 	/** カード表画像ハンドル */
 	private static final int hCardFrontImage;
+	/** 王冠画像ハンドル */
+	private static final int hCrownImage;
 
-	/** プレイヤー人数 */
-	private int numPlayers = 0;
 	/** 山札 */
 	private Stack< Card > deck = null;
 	/** 捨て場 */
@@ -86,18 +86,22 @@ public class GameState
 	private Card.Color prevValidColor;
 	/** イベント。イベント発生中にオブジェクトが代入される。 */
 	private IEvent activeEvent;
+	/** ルールブック */
+	private RuleBook ruleBook;
 
 	//ここからメソッド
 	static
 	{
 		hFrameImage = ImageManager.readImage( "resource/image/bg_playing.png" );
 		hCardFrontImage = ImageManager.readImage( "resource/image/card_back.png" );
+		hCrownImage = ImageManager.readImage( "resource/image/crown.png" );
 	}
 	/**
 	 * コンストラクタ
 	 */
-	public GameState()
+	public GameState( RuleBook ruleBook )
 	{
+		this.ruleBook = ruleBook;
 		logger = new GameLog();
 	}
 
@@ -232,7 +236,7 @@ public class GameState
 
 		int x, y;
 		//見出し
-		String headline = new String( "第" + gameCount + "ゲーム終了" );
+		String headline = new String( isEndOfTheMatch() ? "ゲーム終了　最終結果" : "第" + gameCount + "ゲーム終了" );
 		g.setFont( new Font( prevFont.getFontName(), Font.PLAIN, 30 ) );
 		Dimension headlineSize = ImageManager.getStringPixelSize( g, headline );
 		x = viewPos.x + ( viewSize.width - headlineSize.width ) / 2;	//見出しが真ん中になるように
@@ -256,8 +260,12 @@ public class GameState
 			int colIndex = 0;
 			String textRank = p.getRank() + "";
 			//順位
-			g.setFont( new Font( prevFont.getFontName(), Font.PLAIN, 18 ) );
 			x = viewPos.x + tablePos.x;
+			if( i == 0 && isEndOfTheMatch() ){
+				//1位には王冠つける
+				ImageManager.draw( g, hCrownImage, x, y );
+			}
+			g.setFont( new Font( prevFont.getFontName(), Font.PLAIN, 18 ) );
 			ImageManager.drawString( g, textRank, x, y, colWidths[ colIndex ], rowHeight, ImageManager.Align.CENTER );
 			//名前
 			g.setFont( new Font( prevFont.getFontName(), Font.PLAIN, 14 ) );
@@ -307,15 +315,6 @@ public class GameState
 	}
 
 	/**
-	 * ルールを設定する。(Setup画面でローカルルールを実装したりする予定)
-	 * @param numPlayers プレイヤー人数
-	 */
-	public void setRule( int numPlayers )
-	{
-		this.numPlayers = numPlayers;
-	}
-
-	/**
 	 * ゲーム開始前の初期化。
 	 * 先にsetRuleを呼び出してゲームルールを決めておく。
 	 */
@@ -325,7 +324,7 @@ public class GameState
 		players = new ArrayList< Player >();
 		players.add( new User( "あなた" ) );
 		int nameNumber = 0;
-		for( int i = 1; i < numPlayers; ++i ){
+		for( int i = 1; i < ruleBook.numPlayers; ++i ){
 			players.add( new Player( "NPC_" + nameNumber++ ) );
 		}
 		//山札領域の確保・山札の構築
@@ -692,8 +691,16 @@ public class GameState
 		return validGlyph;
 	}
 
+	/** 現在のプレイヤー人数を帰す */
 	public int getNumPlayers()
 	{
 		return players.size();
+	}
+
+	/** ゲーム終了かどうかを返す */
+	public boolean isEndOfTheMatch()
+	{
+		//TODO トップの得点が500点を越えたら終了。ローカルルールはこの限りでない。
+		return players.get( rankIndices.get( 0 ).intValue() ).getScore() >= 500;
 	}
 }
