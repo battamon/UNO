@@ -78,6 +78,8 @@ public class Card
 	//static変数
 	/** カードの画像ハンドル */
 	private static final int[] hImages;
+	/** カード裏画像ハンドル */
+	public static final int hCardBackImage;
 	/** glyph→Oder対応表 */
 	public static final HashMap< Character, Order > orderTable;
 
@@ -96,6 +98,7 @@ public class Card
 	{
 		//画像読み込み
 		hImages = ImageManager.readDivImage( "resource/image/cards.png", WIDTH, HEIGHT, NUM_KINDS );
+		hCardBackImage = ImageManager.readImage( "resource/image/card_back.png" );
 		//対応表作成
 		orderTable = new HashMap< Character, Order >();
 		orderTable.put( new Character( (char)( '0' ) ), Order.ZERO );
@@ -152,6 +155,16 @@ public class Card
 			handleIndex -= NUM_KINDS_PER_COLOR;
 		}
 		return hImages[ handleIndex ];
+	}
+
+	/**
+	 * 表裏を指定して画像ハンドルを取得する。
+	 * @param surface カードの向き
+	 * @return カード画像のイメージハンドル。
+	 */
+	public static int getCardBackImageHandle()
+	{
+		return hCardBackImage;
 	}
 
 	/**

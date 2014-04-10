@@ -4,6 +4,7 @@ import java.awt.Dimension;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Image;
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
 import java.io.File;
@@ -246,6 +247,19 @@ public class ImageManager
 			default:      dy = y + ascent;                          break;
 		}
 		g.drawString( text.toString(), dx, dy );
+	}
+
+	/**
+	 * 範囲指定して描画を行うRectangle版。
+	 * @param g Graphicsオブジェクト
+	 * @param text 描画したい文字列
+	 * @param rect 描画範囲
+	 * @param colAlign 描画範囲におけるx軸方向の位置
+	 * @param rowAlign 描画範囲におけるy軸方向の位置
+	 */
+	public static void drawString( Graphics g, String text, Rectangle rect, Align colAlign, Align rowAlign )
+	{
+		drawString( g, text, rect.x, rect.y, rect.width, rect.height, colAlign, rowAlign );
 	}
 
 	/**

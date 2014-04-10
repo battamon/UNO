@@ -27,10 +27,10 @@ public class RadioButton
 	{
 		buttons = new MouseHitTestTask();
 		imagePosList = new ArrayList< Point >();
-		onIndex = 0;
+		on( onIndex = 0 );
 	}
 
-	public void update()
+	public boolean update()
 	{
 		buttons.hitTest();
 		buttons.update();
@@ -46,7 +46,7 @@ public class RadioButton
 		if( currentOnIndex == -1 ){
 			currentOnIndex = onIndex;
 		}
-		on( currentOnIndex );
+		return on( currentOnIndex );
 	}
 
 	public void draw( Graphics g )
@@ -90,17 +90,23 @@ public class RadioButton
 	 * buttonsに含まれるボタンはひとつだけオンで、そのほかはオフの状態を保たねばならない。
 	 * @param index オンにするボタンのインデックス
 	 */
-	public void on( int index )
+	public boolean on( int index )
 	{
+		boolean ret = false;
+		int prevOnIndex = onIndex;	//前回までオンだったボタンのインデックス
 		for( int i = 0; i < buttons.size(); ++i ){
 			Button b = (Button)buttons.get( i );
-			if( i == index ){
+			if( i == index ){	//指定されたボタンをオンにして
 				b.on();
-			}else{
+			}else{	//それ以外のボタンはすべてオフ
 				b.off();
 			}
 		}
+		if( prevOnIndex != index ){
+			ret = true;	//ボタンが切り替わったならtrue
+		}
 		onIndex = index;
+		return ret;
 	}
 
 	/**

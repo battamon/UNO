@@ -26,6 +26,12 @@ import base.RadioButton;
  */
 public class Setup implements ISequence
 {
+	/** 戻るボタンの色 */
+	private static final Color BUTTON_RETURN_COLOR = new Color( 0, 162, 232 );
+	/** 採用ルール詳細領域 */
+	private static final Rectangle RULE_DETAIL_AREA = new Rectangle( 139, 69, 471, 253 );
+	/** 採点方式詳細領域 */
+	private static final Rectangle SCORING_DETAIL_AREA = new Rectangle( 139, 337, 271, 123 );
 	/** 戻るボタン領域 */
 	private static final Rectangle BUTTON_RETURN_AREA = new Rectangle( 430, 420, 180, 40 );
 	/** 人数ダウンボタン領域 */
@@ -70,13 +76,15 @@ public class Setup implements ISequence
 	private static int hSetupImage = ImageManager.NO_HANDLE;
 
 	/** 戻るボタン */
-	private Button buttonReturn = null;
+	protected Button buttonReturn = null;
 	/** 人数ダウンボタン */
 	private Button buttonDown = null;
 	/** 人数アップボタン */
 	private Button buttonUp = null;
-	/** 通常ボタン用当たり判定タスク */
-	private MouseHitTestTask hitTestTask = null;
+	/** 決定・戻るボタン用当たり判定タスク */
+	protected MouseHitTestTask taskReturn = null;
+	/** 人数変更用当たり判定タスク */
+	private MouseHitTestTask taskChangeNumPlayers = null;
 	/** ラジオボタン群 */
 	private RadioButton rbRule;
 	private RadioButton rbRuleDeckDraw;
@@ -91,22 +99,32 @@ public class Setup implements ISequence
 	private Map< RadioButton, List< RadioButton > > rbTree;
 	/** 参加人数 */
 	private int numPlayers;
-	/** ルールブック */
-	private RuleBook ruleBook;
+	/** 親から受け取ったルールブック。このオブジェクトに最終的なルールを記述する。 */
+	private final RuleBook masterRuleBook;
+	/** ルールブックの写し。現在設定中のルールを記述する。 */
+	private RuleBook copyRuleBook;
+	/** 変更可能フラグ */
+	protected boolean changeable;
 
 	public Setup( RuleBook ruleBook )
 	{
-		this.ruleBook= ruleBook; 
+		this.masterRuleBook= ruleBook;
+		copyRuleBook = new RuleBook( masterRuleBook );
+		changeable = true;
 		//背景
 		hSetupImage = ImageManager.readImage( "resource/image/setup.png" );
-		//戻る・人数ボタン
+		//戻るボタン
 		buttonReturn = new Button( BUTTON_RETURN_AREA );
+		taskReturn = new MouseHitTestTask();
+		taskReturn.add( buttonReturn );
+		//人数変更ボタン
 		buttonDown = new Button( BUTTON_DOWN_AREA );
+		buttonDown.setImageHandle( ImageManager.readImage( "resource/image/button_left_triangle.png" ) );
 		buttonUp = new Button( BUTTON_UP_AREA );
-		hitTestTask = new MouseHitTestTask();
-		hitTestTask.add( buttonReturn );
-		hitTestTask.add( buttonDown );
-		hitTestTask.add( buttonUp );
+		buttonUp.setImageHandle( ImageManager.readImage( "resource/image/button_right_triangle.png" ) );
+		taskChangeNumPlayers = new MouseHitTestTask();
+		taskChangeNumPlayers.add( buttonDown );
+		taskChangeNumPlayers.add( buttonUp );
 		//各ラジオボタン
 		rbRule = new RadioButton();
 		rbRule.addButton( RB_RULE_AREA_OFFICIAL, RB_IMAGE_POS );
@@ -144,50 +162,91 @@ public class Setup implements ISequence
 		rbTree.put( rbRule, Arrays.asList( rbRuleDeckDraw, rbRulePenalty, rbRuleChallenge, rbRuleAvoidDraw, rbRuleDiscardMultiple ) );
 		rbTree.put( rbRuleDiscardMultiple, Arrays.asList( rbRuleDiscardMultibleCondition ) );
 		rbTree.put( rbScoring, Arrays.asList( rbScoringSystem ) );
-		readRuleBook();
+		//ルールの読み込み
+		readRuleBook( masterRuleBook );
 	}
 
 	@Override
 	public int update( ISequence parent )
 	{
-		//当たり判定
-		hitTestTask.hitTest();
-		//各オブジェクト更新
-		hitTestTask.update();
-		if( buttonDown.isClicked() ){
-			--numPlayers;
-			if( numPlayers < 2 ){
-				numPlayers = 2;
-			}
-		}
-		if( buttonUp.isClicked() ){
-			++numPlayers;
-			if( numPlayers > 10 ){
-				numPlayers = 10;
-			}
-		}
-		//ラジオボタン更新 TODO ルール設定によって設定可能な項目を絞ろう
-		List< RadioButton > updateList = new ArrayList< RadioButton >();
-		updateList.add( rbRule );
-		updateList.add( rbScoring );
-		while( !updateList.isEmpty() ){
-			//リストからひとつ取り出して
-			RadioButton rb = updateList.remove( 0 );
-			//子が居たらリストに追加
-			if( rbTree.containsKey( rb ) ){
-				List< RadioButton > childList = rbTree.get( rb );
-				for( RadioButton child : childList ){
-					updateList.add( child );
+		//決定・戻るボタン当たり判定・更新
+		taskReturn.hitTest();
+		taskReturn.update();
+
+		//設定の変更が可能なときの処理
+		if( changeable ){
+			taskChangeNumPlayers.hitTest();
+			taskChangeNumPlayers.update();
+			if( buttonDown.isClicked() ){	//人数を減らす
+				--numPlayers;
+				if( numPlayers < 2 ){	//下限は2人
+					numPlayers = 2;
 				}
 			}
-			//親を更新
-			rb.update();
+			if( buttonUp.isClicked() ){	//人数を増やす
+				++numPlayers;
+				if( numPlayers > 10 ){	//上限は10人
+					numPlayers = 10;
+				}
+			}
+			//ラジオボタン更新。ツリー構造になっているので幅優先探索で更新している。 TODO ルール設定によって設定可能な項目を絞ろう
+			List< RadioButton > updateList = new ArrayList< RadioButton >();
+			updateList.add( rbRule );
+			updateList.add( rbScoring );
+			while( !updateList.isEmpty() ){
+				//リストからひとつ取り出して
+				RadioButton rb = updateList.remove( 0 );
+				//子がいたらリストに追加
+				if( rbTree.containsKey( rb ) ){
+					List< RadioButton > childList = rbTree.get( rb );
+					for( RadioButton child : childList ){
+						updateList.add( child );
+					}
+				}
+				//親を更新
+				boolean switched = rb.update();
+
+				if( switched ){	//何かのラジオボタンが切り替わった
+					if( rb == rbRule && rb.getOn() != 2 ){	//切り替わったのが採用ルールのボタンだったら
+						copyRuleBook.numPlayers = numPlayers;
+						switch( rb.getOn() ){
+							case 0:	//オフィシャルルール
+								copyRuleBook.setPresetRule( RuleBook.Preset.OFFICIAL );
+								break;
+							case 1:	//日本ルール
+								copyRuleBook.setPresetRule( RuleBook.Preset.JAPAN );
+								break;
+						}
+						//ラジオボタンをプリセットルールに合わせる
+						readRuleBook( copyRuleBook );
+					}else if( isParentNode( rbRule, rb ) ){	//切り替わったのが採用ルールの詳細関連のボタンだったら
+						//強制的にカスタムに切り替える
+						rbRule.on( 2 );
+					}
+					if( rb == rbScoring && rb.getOn() != 2 ){	//採点方式についても上記と同様
+						masterRuleBook.numPlayers = numPlayers;
+						switch( rb.getOn() ){
+							case 0:	//オフィシャルルール
+								copyRuleBook.setPresetScoring( RuleBook.Preset.OFFICIAL );
+								break;
+							case 1:	//日本ルール
+								copyRuleBook.setPresetScoring( RuleBook.Preset.JAPAN );
+								break;
+						}
+						//ラジオボタンをプリセットルールに合わせる
+						readRuleBook( copyRuleBook );
+					}else if( isParentNode( rbScoring, rb ) ){
+						//強制的にカスタムに切り替える
+						rbScoring.on( 2 );
+					}
+				}
+			}
 		}
 
 		//シーケンス遷移
 		int next = RootParent.NEXT_SEQUENCE_DEFAULT;
 		if( buttonReturn.isClicked() ){
-			writeRuleBook();
+			writeRuleBook( masterRuleBook );
 			next = RootParent.NEXT_SEQUENCE_TITLE;
 		}
 		return next;
@@ -196,9 +255,19 @@ public class Setup implements ISequence
 	@Override
 	public void render( Graphics g )
 	{
-		//戻るボタン描画
 		ImageManager.draw( g, hSetupImage, 0, 0 );
-		hitTestTask.draw( g );
+		//前準備
+		Color prevColor = g.getColor();
+		Font prevFont = g.getFont();
+		//戻るボタン描画
+		g.setColor( BUTTON_RETURN_COLOR );
+		g.setFont( new Font( prevFont.getName(), Font.PLAIN, 32 ) );
+		ImageManager.drawString( g, changeable ? "決　定" : "戻　る", BUTTON_RETURN_AREA, ImageManager.Align.CENTER, ImageManager.Align.CENTER );
+		taskReturn.draw( g );
+		//人数変更ボタン描画
+		if( changeable ){
+			taskChangeNumPlayers.draw( g );
+		}
 		//ラジオボタン描画
 		List< RadioButton > drawList = new ArrayList< RadioButton >();
 		drawList.add( rbRule );
@@ -216,12 +285,19 @@ public class Setup implements ISequence
 			//親を描画
 			rb.draw( g );
 		}
+		//カスタム設定ではないときは暗くする
+		g.setColor( new Color( 0, 0, 0, 64 ) );
+		if( rbRule.getOn() != 2 ){
+			g.fillRect( RULE_DETAIL_AREA.x, RULE_DETAIL_AREA.y, RULE_DETAIL_AREA.width, RULE_DETAIL_AREA.height );
+		}
+		if( rbScoring.getOn() != 2 ){
+			g.fillRect( SCORING_DETAIL_AREA.x, SCORING_DETAIL_AREA.y, SCORING_DETAIL_AREA.width, SCORING_DETAIL_AREA.height );
+		}
 		//参加人数描画
-		Color prevColor = g.getColor();
-		Font prevFont = g.getFont();
 		g.setColor( Color.BLACK );
 		g.setFont( new Font( prevFont.getName(), Font.PLAIN, 14 ) );
 		ImageManager.drawString( g, numPlayers + "", NUM_PLAYERS_AREA.x, NUM_PLAYERS_AREA.y, NUM_PLAYERS_AREA.width, NUM_PLAYERS_AREA.height, ImageManager.Align.RIGHT );
+		//後処理
 		g.setFont( prevFont );
 		g.setColor( prevColor );
 	}
@@ -229,10 +305,10 @@ public class Setup implements ISequence
 	@Override
 	public void destroy()
 	{
-		hitTestTask.removeAll();
+		taskReturn.removeAll();
 	}
 
-	private void readRuleBook()
+	private void readRuleBook( RuleBook ruleBook )
 	{
 		numPlayers = ruleBook.numPlayers;
 		switch( ruleBook.rule ){
@@ -277,7 +353,7 @@ public class Setup implements ISequence
 		}
 	}
 
-	private void writeRuleBook()
+	private void writeRuleBook( RuleBook ruleBook )
 	{
 		ruleBook.numPlayers = numPlayers;
 		switch( rbRule.getOn() ){
@@ -321,4 +397,23 @@ public class Setup implements ISequence
 			case 2: ruleBook.scoringSystem = RuleFlag.MIX; break;
 		}
 	}
+
+	private boolean isParentNode( RadioButton parent, RadioButton child )
+	{
+		List< RadioButton > checkList = new ArrayList< RadioButton >();
+		checkList.add( parent );
+		while( !checkList.isEmpty() ){
+			RadioButton rb = checkList.remove( 0 );
+			if( rb == child ){
+				return true;
+			}
+			if( rbTree.containsKey( rb ) ){
+				for( RadioButton ch : rbTree.get( rb ) ){
+					checkList.add( ch );
+				}
+			}
+		}
+		return false;
+	}
+
 }

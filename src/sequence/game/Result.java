@@ -60,7 +60,7 @@ public class Result implements ISequence
 	public void render( Graphics g )
 	{
 		gameState.draw( g );
-		gameState.drawResult( g );
+		gameState.drawRanking( g );
 
 		buttonNext.draw( g );
 	}

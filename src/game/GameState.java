@@ -1,5 +1,6 @@
 package game;
 
+import game.RuleBook.RuleFlag;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -53,8 +54,6 @@ public class GameState
 	//ここからフィールド
 	/** 背景画像ハンドル */
 	private static final int hFrameImage;
-	/** カード表画像ハンドル */
-	private static final int hCardFrontImage;
 	/** 王冠画像ハンドル */
 	private static final int hCrownImage;
 
@@ -88,12 +87,15 @@ public class GameState
 	private IEvent activeEvent;
 	/** ルールブック */
 	private RuleBook ruleBook;
+	/** ゲーム画面に設置する当たり判定の必要なオブジェクト管理 */
+	private MouseHitTestTask hitTestTask;
+	/** 画面上に設置する山札 */
+	private CardVisible deckVisible;
 
 	//ここからメソッド
 	static
 	{
 		hFrameImage = ImageManager.readImage( "resource/image/bg_playing.png" );
-		hCardFrontImage = ImageManager.readImage( "resource/image/card_back.png" );
 		hCrownImage = ImageManager.readImage( "resource/image/crown.png" );
 	}
 	/**
@@ -103,6 +105,10 @@ public class GameState
 	{
 		this.ruleBook = ruleBook;
 		logger = new GameLog();
+		deckVisible = new CardVisible( null );	//裏面表示するだけなのでカード情報はnull
+		deckVisible.setPos( DECK_AREA.x, DECK_AREA.y );
+		hitTestTask = new MouseHitTestTask();
+		hitTestTask.add( deckVisible );
 	}
 
 	public Phase update()
@@ -111,6 +117,9 @@ public class GameState
 		for( Player p : players ){
 			p.update();
 		}
+		//設置オブジェクト更新
+		hitTestTask.hitTest();
+		hitTestTask.update();
 
 		switch( phase ){
 			case START: //ゲーム開始前の準備
@@ -187,12 +196,12 @@ public class GameState
 	{
 		//背景
 		ImageManager.draw( g, hFrameImage, 0, 0 );
-		//山札
-		ImageManager.draw( g, hCardFrontImage, DECK_AREA.x, DECK_AREA.y );
 		//捨て場
 		if( !discardPile.isEmpty() ){
 			ImageManager.draw( g, discardPile.peek().getImageHandle(), DISCARD_PILE_AREA.x, DISCARD_PILE_AREA.y );
 		}
+		//設置オブジェクト(山札・メニューボタン)の描画
+		hitTestTask.draw( g );
 		//ログ
 		logger.view( g );
 
@@ -211,7 +220,7 @@ public class GameState
 	 * 結果表示する
 	 * @param g 描画用オブジェクト
 	 */
-	public void drawResult( Graphics g )
+	public void drawRanking( Graphics g )
 	{
 		//前準備
 		Color prevColor = g.getColor();
@@ -236,7 +245,16 @@ public class GameState
 
 		int x, y;
 		//見出し
-		String headline = new String( isEndOfTheMatch() ? "ゲーム終了　最終結果" : "第" + gameCount + "ゲーム終了" );
+		String headline = null;
+		if( phase == Phase.RESULT ){	//ゲームが終了しているときに呼び出された
+			if( isEndOfTheMatch() ){
+				headline = "ゲーム終了　最終結果";
+			}else{
+				headline = "第" + gameCount + "ゲーム終了";
+			}
+		}else{	//ゲームの途中(メニューからランキングを見る)で呼び出された
+			headline = "現在のランキング";
+		}
 		g.setFont( new Font( prevFont.getFontName(), Font.PLAIN, 30 ) );
 		Dimension headlineSize = ImageManager.getStringPixelSize( g, headline );
 		x = viewPos.x + ( viewSize.width - headlineSize.width ) / 2;	//見出しが真ん中になるように
@@ -245,7 +263,7 @@ public class GameState
 		ImageManager.drawString( g, headline, x, y );
 
 		//プレイヤー情報
-		List< String > captions = Arrays.asList( new String[]{ "順位", "名前", "終了時の手札", "換算点", "増減", "持ち点" } );
+		List< String > captions = Arrays.asList( new String[]{ "順位", "名前", phase == Phase.RESULT ? "終了時の手札" : "手札の残り枚数", "換算点", "増減", "持ち点" } );
 		g.setColor( Color.BLACK );
 		g.setFont( new Font( prevFont.getFontName(), Font.PLAIN, 14 ) );
 		x = viewPos.x + tablePos.x;
@@ -282,7 +300,9 @@ public class GameState
 			if( overlappedWidth > 0 ){	//単純に並べてはみ出すなら調整しながら並べる
 				int ccx = cx;
 				for( int j = 0; j < p.hands.size() - 1; ++j ){
-					ImageManager.draw( g, p.hands.get( j ).getImageHandle(), ccx, cy, viewCardWidth, viewCardHeight );
+					//ゲーム終了時は手札公開、そうでない時は非公開
+					int hImage = phase == Phase.RESULT ? p.hands.get( j ).getImageHandle() : Card.hCardBackImage;
+					ImageManager.draw( g, hImage, ccx, cy, viewCardWidth, viewCardHeight );
 					ccx = cx + viewCardWidth * ( j + 1 ) - (int)( overlappedWidth / (double)( p.hands.size() - 1 ) * ( j + 1 ) );	//次のカードのx座標を計算しておく
 				}
 				//最後の1枚の微調整
@@ -290,13 +310,17 @@ public class GameState
 				ImageManager.draw( g, p.hands.get( p.hands.size() - 1 ).getImageHandle(), ccx, cy, viewCardWidth, viewCardHeight );
 			}else{	//単純に並べてもはみ出さないならそのまま並べる。
 				for( Card c : p.hands ){
-					ImageManager.draw( g, c.getImageHandle(), cx, cy, viewCardWidth, viewCardHeight );
+					//ゲーム終了時は手札公開、そうでない時は非公開
+					int hImage = phase == Phase.RESULT ? c.getImageHandle() : Card.hCardBackImage;
+					ImageManager.draw( g, hImage, cx, cy, viewCardWidth, viewCardHeight );
 					cx += viewCardWidth;
 				}
 			}
 			//換算点
 			x += colWidths[ colIndex++ ];
-			ImageManager.drawString( g, p.calcScore() + "", x, y, colWidths[ colIndex ], rowHeight, ImageManager.Align.RIGHT, ImageManager.Align.CENTER );
+			if( phase == Phase.RESULT ){
+				ImageManager.drawString( g, p.calcScore() + "", x, y, colWidths[ colIndex ], rowHeight, ImageManager.Align.RIGHT, ImageManager.Align.CENTER );
+			}
 			//増減
 			x += colWidths[ colIndex++ ];
 			if( p.getFluctuationPoint() != 0 ){
@@ -495,18 +519,26 @@ public class GameState
 					}
 				}
 			}
-			if( end ){
+			if( end ){	//手札が選択・決定された
 				//手札のカードを場に出す
 				setCardToDiscardPile( user.removeSelectedCards() );
 				if( user.getNumHands() == 1 ){
 					logger.setLog( user.getName() + "「UNO!」" );
+				}
+			}else{	//山札から引く。(ローカルルール)
+				if( ruleBook.deckDraw == RuleFlag.EVERYTIME ){
+					if( deckVisible.isLeftClicked() ){
+						drawCard( user );
+						logger.setLog( user.getName() + "は山札から1枚引きました。" );
+						end = true;
+					}
 				}
 			}
 		}else{
 			++waitingCount;
 			if( waitingCount == WAITING_INTERVAL ){
 				waitingCount = 0;
-				//山札からカードを引く。 TODO 標準ルールはカードを引いたら手番は終了するが、ローカルルールでは修正が必要かも。
+				//山札からカードを引く。 
 				drawCard( user );
 				logger.setLog( user.getName() + "は山札から1枚引きました。" );
 				end = true;

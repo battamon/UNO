@@ -7,6 +7,11 @@ package game;
  */
 public class RuleBook
 {
+	/** プリセット */
+	public enum Preset{
+		OFFICIAL,
+		JAPAN,
+	}
 	/** 設定群 */
 	public enum RuleFlag{
 		OFFICIAL,	//採点ルール、採点方式
@@ -47,14 +52,66 @@ public class RuleBook
 	public RuleBook()
 	{
 		rule = RuleFlag.OFFICIAL;
-		deckDraw = RuleFlag.EVERYTIME;
-		penalty = RuleFlag.WITH;
+		deckDraw = RuleFlag.LIMITED;
+		penalty = RuleFlag.WITHOUT;
 		challenge = RuleFlag.WITH;
-		avoidDraw = RuleFlag.WITH;
+		avoidDraw = RuleFlag.WITHOUT;
 		discardMultiple = RuleFlag.WITHOUT;
 		discardMultipleCondition = RuleFlag.NUMBER;
 		scoring = RuleFlag.OFFICIAL;
 		scoringSystem = RuleFlag.SCORE;
 		numPlayers = 2;
+	}
+
+	public RuleBook( RuleBook rb )
+	{
+		rule = rb.rule;
+		deckDraw = rb.deckDraw;
+		penalty = rb.penalty;
+		challenge = rb.challenge;
+		avoidDraw = rb.avoidDraw;
+		discardMultiple = rb.discardMultiple;
+		discardMultipleCondition = rb.discardMultipleCondition;
+		scoring = rb.scoring;
+		scoringSystem = rb.scoringSystem;
+		numPlayers = rb.numPlayers;
+	}
+
+	public void setPresetRule( Preset set )
+	{
+		switch( set ){
+			case OFFICIAL:
+				rule = RuleFlag.OFFICIAL;
+				deckDraw = RuleFlag.LIMITED;
+				penalty = RuleFlag.WITHOUT;
+				challenge = RuleFlag.WITH;
+				avoidDraw = RuleFlag.WITHOUT;
+				discardMultiple = RuleFlag.WITHOUT;
+				discardMultipleCondition = RuleFlag.NUMBER;
+				break;
+			case JAPAN:
+				rule = RuleFlag.JAPAN;
+				deckDraw = RuleFlag.EVERYTIME;
+				penalty = RuleFlag.WITHOUT;
+				challenge = RuleFlag.WITH;
+				avoidDraw = RuleFlag.WITH;
+				discardMultiple = RuleFlag.LIMITED;
+				discardMultipleCondition = RuleFlag.NUMBER;
+				break;
+		}
+	}
+
+	public void setPresetScoring( Preset set )
+	{
+		switch( set ){
+			case OFFICIAL:
+				scoring = RuleFlag.OFFICIAL;
+				scoringSystem = RuleFlag.SCORE;
+				break;
+			case JAPAN:
+				scoring = RuleFlag.JAPAN;
+				scoringSystem = RuleFlag.ROUND;
+				break;
+		}
 	}
 }

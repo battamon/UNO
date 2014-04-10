@@ -28,6 +28,10 @@ public class CardVisible implements IHitTestObject
 	/** 右クリックフラグ */
 	private boolean rightClicked;
 
+	/**
+	 * cardにnullを渡すと裏向きになる
+	 * @param card 画面に表示したいカードのオブジェクト
+	 */
 	public CardVisible( Card card )
 	{
 		this.card = card;
@@ -55,7 +59,7 @@ public class CardVisible implements IHitTestObject
 	@Override
 	public void draw( Graphics g )
 	{
-		ImageManager.draw( g, card.getImageHandle(), rect.x, rect.y );
+		ImageManager.draw( g, card != null ? card.getImageHandle() : Card.getCardBackImageHandle(), rect.x, rect.y );
 	}
 
 	/** 座標を設定する */
