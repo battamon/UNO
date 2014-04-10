@@ -21,6 +21,8 @@ public class User extends Player
 	private MouseHitTestTask visibleHands = null;
 	/** 出せるカードフラグ */
 	private List< Boolean > removableCardFlags = null;
+	/** 複数同時出し可能なカードフラグ */
+	private List< Boolean > removableMultiFlags = null;
 
 	public User( String name )
 	{
@@ -48,7 +50,15 @@ public class User extends Player
 		//場に出せないカードは暗く表示する。
 		for( int i = visibleHands.size() - 1; i >= 0; --i ){
 			CardUserHand c = (CardUserHand)visibleHands.get( i );
-			boolean dark = removableCardFlags != null ? !removableCardFlags.get( i ).booleanValue() : false;
+			boolean dark = false;
+			if( removableCardFlags != null && !removableCardFlags.get( i ).booleanValue() ){
+				dark = true;	//選択できないカードは色を落とす。
+				if( removableMultiFlags != null && removableMultiFlags.size() == removableCardFlags.size() ){	//サイズが合わなかったらmulti側のデータが古いので参照しない
+					if( removableMultiFlags.get( i ).booleanValue() ){
+						dark = false;	//複数同時出しで出せるカードなら色は落とさない。
+					}
+				}
+			}
 			c.setDark( dark );
 			c.draw( g );
 		}
@@ -86,6 +96,18 @@ public class User extends Player
 	{
 		removableCardFlags = super.isRemovableCards( color, glyph );
 		return removableCardFlags;
+	}
+
+	/** 同時出し可能カードフラグも描画用にフィールドとして保持しておく */
+	@Override
+	public List< Boolean > isRemovableCardsMulti( Card sample, RuleBook rb )
+	{
+		if( sample != null ){
+			removableMultiFlags = super.isRemovableCardsMulti( sample, rb );
+		}else{
+			removableMultiFlags = null;
+		}
+		return removableMultiFlags;
 	}
 
 	/** 不必要になった出せるカードフラグ情報を消す */

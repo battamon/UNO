@@ -138,7 +138,8 @@ public class Player
 
 	/**
 	 * 手札のカードが出せるかどうかをそれぞれ調べる
-	 * @param discardTop 捨て場に見えているカード
+	 * @param color 捨て場に見えているカード色
+	 * @param glyph 捨て場に見えているカード文字
 	 * @return 出せるかどうかを示すリスト
 	 */
 	public List< Boolean > isRemovableCards( Card.Color color, char glyph )
@@ -148,7 +149,6 @@ public class Player
 			Card card = hands.get( i );
 			//出せるパターンならremovablesにtrueをセット
 			if( card.color == Card.Color.BLACK	//出すカードが黒
-					|| color == Card.Color.BLACK	//TODO: 場の色が黒 ディーラーを決めればこれは要らない
 					|| card.color == color		//色が同じ
 					|| card.glyph == glyph ){	//数字記号が同じ
 				removables.set( i, Boolean.TRUE );
@@ -161,13 +161,39 @@ public class Player
 	}
 
 	/**
+	 * 既に選択されているカードから同時出し出来るカードがあるかどうか調べる。
+	 * @param sample 基準となるカード
+	 * @param RuleBook ルール設定フラグ群
+	 * @return 出せるかどうかを示すリスト
+	 */
+	public List< Boolean > isRemovableCardsMulti( Card sample, RuleBook rb )
+	{
+		List< Boolean > removableList = Arrays.asList( new Boolean[ hands.size() ] );
+		for( int i = 0; i < hands.size(); ++i ){
+			removableList.set( i, Boolean.FALSE );
+			Card card = hands.get( i );
+			if( card.glyph == sample.glyph ){	//カード文字が一致した
+				//discardMultipleの条件チェック
+				if( ( rb.discardMultiple == RuleBook.RuleFlag.LIMITED && sample.type == Card.Type.NUMBER )	//数字のみが条件で、数字カードの場合
+						|| rb.discardMultiple == RuleBook.RuleFlag.ALL ){	//もしくは数字、記号どちらでも可の場合
+					removableList.set( i, Boolean.TRUE );
+					//discardMultibleConditionの条件チェック
+					if( rb.discardMultipleCondition == RuleBook.RuleFlag.NUMBER_AND_COLOR && card.color != sample.color ){	//カード色も一致させる必要があるが、実際は不一致だった場合
+						removableList.set( i, Boolean.FALSE );
+					}
+				}
+			}
+		}
+		return removableList;
+	}
+
+	/**
 	 * カードを出す
 	 * @param index 手札のインデックス
 	 * @return 指定されたカード
 	 */
 	public List< Card > removeHands( List< Integer > selectedCardIndecis )
 	{
-		//TODO 1枚だけ返す実装だが、ローカルルールによっては複数枚返さないとならない場合も？
 		List< Card > cards = new ArrayList< Card >();
 		for( Integer i : selectedCardIndecis ){
 			cards.add( hands.remove( i.intValue() ) );

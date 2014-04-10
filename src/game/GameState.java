@@ -130,8 +130,12 @@ public class GameState
 				//手番を決める
 				decideOrder();
 				//場札を決める
-				setFirstDiscardPile();
-				phase = Phase.PLAYING;
+				if( setFirstDiscardPile() ){
+					activeEvent = discardPile.peek().event;
+					phase = Phase.EVENT;
+				}else{
+					phase = Phase.PLAYING;
+				}
 				break;
 			case PLAYING:	//ゲーム開始
 			{
@@ -140,16 +144,15 @@ public class GameState
 				if( play( p ) ){	//行動が完了した
 					int numAfterHands = p.getNumHands();
 					//ゲームオーバー判定
-					if( numAfterHands == 0 ){
-						logger.setLog( p.getName() + "の手札が無くなりました。" );
-						logger.setLog( "ゲーム終了。" );
-						phase = Phase.GAME_OVER;
 					//カード効果有無判定
-					}else if( numAfterHands < numBiforeHands && discardPile.peek().event.hasEvent() ){
+					if( numAfterHands < numBiforeHands && discardPile.peek().event.hasEvent() ){
 						activeEvent = discardPile.peek().event;
 						phase = Phase.EVENT;
-					//何も無ければ次の人へ
+					}else if( numAfterHands == 0 ){
+						//イベントもなく手札も無くなったら終了
+						phase = Phase.GAME_OVER;
 					}else{
+						//何も無ければ次の人へ
 						advanceTurn();
 					}
 				}
@@ -157,15 +160,35 @@ public class GameState
 			}
 			case EVENT:
 			{
+				Player p = getCurrentPlayer();
+				//ローカルルール。役上がりペナルティが有効な場合の処理。
+				if( p.getNumHands() == 0 && ruleBook.penalty == RuleBook.RuleFlag.WITH ){
+					//ペナルティありならn枚引かせる TODO ペナルティの枚数は設定で指定できるようにする？
+					int numDraw = 2;
+					for( int i = 0; i < numDraw; ++i ){
+						p.drawCard( deck );
+					}
+					logger.setLog( "役上がりペナルティ発生！" );
+					logger.setLog( p.getName() + "はペナルティとして" + numDraw + "枚引きます。" );
+				}
+				//イベントを呼び出す。イベントが確定したらactivateして効果を発動。
 				if( activeEvent.update( this ) ){
 					activeEvent.activate( this );
-					advanceTurn();
 					activeEvent = null;
-					phase = Phase.PLAYING;
+					if( p.getNumHands() != 0 ){	//手札が残ってたら続行
+						advanceTurn();
+						phase = Phase.PLAYING;
+					}else{	//無くなったら終了
+						phase = Phase.GAME_OVER;
+					}
 				}
 				break;
 			}
 			case GAME_OVER: //1ゲーム終了。RESULTフェイズまでのインターバル。
+				if( waitingCount == 0 ){
+					logger.setLog( getCurrentPlayer().getName() + "の手札が無くなりました。" );
+					logger.setLog( "ゲーム終了。" );
+				}
 				++waitingCount;
 				if( waitingCount == GAME_OVER_TO_RESULT_INTERVAL ){
 					waitingCount = 0;
@@ -351,6 +374,10 @@ public class GameState
 		for( int i = 1; i < ruleBook.numPlayers; ++i ){
 			players.add( new Player( "NPC_" + nameNumber++ ) );
 		}
+		//とりあえず順番はばらばらにしておく
+		Collections.shuffle( players );
+		//ディーラーを決める
+		whosePlayingIndex = (int)( Math.random() * ruleBook.numPlayers );
 		//山札領域の確保・山札の構築
 		deck = new Stack< Card >();
 		createShuffledDeck( deck );
@@ -447,21 +474,21 @@ public class GameState
 	}
 
 	/**
-	 * 手番を決める
+	 * 手番を振る
 	 */
 	private void decideOrder()
 	{
-		//FIXME とりあえずシャッフルで決める。正しくはディーラーを決めよう。
-		Collections.shuffle( players );
+		//最初の手番のプレイヤーがディーラーになるが、山札をめくって手番は終了する。
 		for( int i = 0; i < players.size(); ++i ){
 			players.get( i ).setOrder( i );
 		}
 	}
 
 	/**
-	 * 場札を決める
+	 * 場札を決める。最初の場札はディーラーが出した扱いになる。
+	 * @return 場札にイベントがあるならtrueを返す。
 	 */
-	private void setFirstDiscardPile()
+	private boolean setFirstDiscardPile()
 	{
 		Card card;
 		while( ( card = deck.pop() ).glyph == Card.GLYPH_WILD_DRAW_FOUR ){
@@ -470,6 +497,7 @@ public class GameState
 			Collections.shuffle( deck );
 		}
 		setCardToDiscardPile( card );
+		return discardPile.peek().type == Card.Type.SYMBOL;
 	}
 
 	/**
@@ -486,17 +514,29 @@ public class GameState
 	private boolean playUser( User user )
 	{
 		boolean end = false;
+		//既に選択されている状態のカードがあるなら無作為に取り出して同時出しの比較対象にする
+		Card sample = null;
+		List< Boolean > multiRemovableList = null;
+		MouseHitTestTask visibleHands = user.getVisibleHands();
+		for( int i = 0; i < visibleHands.size(); ++i ){
+			CardUserHand cuh = (CardUserHand)visibleHands.get( i );
+			if( cuh.isSelected() ){
+				sample = cuh.card;
+				break;
+			}
+		}
+		//場に出せるカードリストの取得
 		List< Boolean > removableHandsList = user.isRemovableCards( validColor, validGlyph );
+		//既に選択されているカードがあったら、そのカードを基準に同時出し出来るカードリストを取得
+		multiRemovableList = user.isRemovableCardsMulti( sample, ruleBook );
 		//手札を出せるかどうか。出せるなら選択処理へ、出せないなら山札から1枚引く。
 		if( user.isPlayable( validColor, validGlyph ) ){
 			//手札のクリック処理。左クリックで選択状態。右クリックで選択解除。
-			//FIXME 一度に1枚しか選択できない状態にしてあるので、ローカルルール実装時は修正が必要。
 			int selectedCardIndex = -1;
-			MouseHitTestTask visibleHands = user.getVisibleHands();
 			for( int i = 0; i < visibleHands.size(); ++i ){
 				CardUserHand cuh = (CardUserHand)visibleHands.get( i );
 				if( cuh.isLeftClicked() ){	//左クリック
-					if( removableHandsList.get( i ).booleanValue() ){	//出せるカードかチェック
+					if( removableHandsList.get( i ).booleanValue() || ( multiRemovableList != null && multiRemovableList.get( i ).booleanValue() ) ){	//出せるカードかチェック
 						if( cuh.isSelected() ){
 							end = true;	//既に選択状態のカードをクリックしたら場に出す
 						}else{
@@ -509,18 +549,37 @@ public class GameState
 					cuh.setSelect( false );
 				}
 			}
+			//何らかのカードが選択された
 			if( selectedCardIndex != -1 ){
-				for( int i = 0; i < visibleHands.size(); ++i ){
-					CardUserHand cuh = (CardUserHand)visibleHands.get( i );
-					if( selectedCardIndex == i ){
-						cuh.setSelect( true );
-					}else{
-						cuh.setSelect( false );
+				//ローカルルール。１枚しか出せない場合とそうでない場合で処理を分ける。
+				boolean multi = false;
+				if( ruleBook.discardMultiple != RuleBook.RuleFlag.WITHOUT ){
+					if( sample != null ){
+						//新たに選択したカードをチェック
+						if( multiRemovableList.get( selectedCardIndex ).booleanValue() ){
+							multi = true;
+						}
+					}
+				}
+				if( multi ){
+					//複数枚同時出し可能な場合
+					( (CardUserHand)visibleHands.get( selectedCardIndex ) ).setSelect( true  );
+				}else{
+					//1枚ずつしか出せない場合
+					for( int i = 0; i < visibleHands.size(); ++i ){
+						CardUserHand cuh = (CardUserHand)visibleHands.get( i );
+						if( selectedCardIndex == i ){
+							cuh.setSelect( true );
+						}else{
+							cuh.setSelect( false );
+						}
 					}
 				}
 			}
 			if( end ){	//手札が選択・決定された
 				//手札のカードを場に出す
+				//FIXME 複数同時出しの場合の、カードを出す順番を直そう
+				//FIXME 複数同時出しの場合の、カードの効果を累積できるようにしよう
 				setCardToDiscardPile( user.removeSelectedCards() );
 				if( user.getNumHands() == 1 ){
 					logger.setLog( user.getName() + "「UNO!」" );
@@ -734,5 +793,11 @@ public class GameState
 	{
 		//TODO トップの得点が500点を越えたら終了。ローカルルールはこの限りでない。
 		return players.get( rankIndices.get( 0 ).intValue() ).getScore() >= 500;
+	}
+
+	/** ルールブックを取得する */
+	public RuleBook getRuleBook()
+	{
+		return ruleBook;
 	}
 }

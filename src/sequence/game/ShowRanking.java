@@ -57,7 +57,6 @@ public class ShowRanking implements ISequence
 		//ゲーム画面
 		gameState.draw( g );
 		//ランキングウィンドウ
-		//TODO 正しい順番でランキング表示されない。ディーラーを決めたら直る(はず)なので再度確認しよう。
 		gameState.drawRanking( g );
 		//戻るボタン
 		task.draw( g );

@@ -189,7 +189,7 @@ public class Setup implements ISequence
 					numPlayers = 10;
 				}
 			}
-			//ラジオボタン更新。ツリー構造になっているので幅優先探索で更新している。 TODO ルール設定によって設定可能な項目を絞ろう
+			//ラジオボタン更新。ツリー構造になっているので幅優先探索で更新している。
 			List< RadioButton > updateList = new ArrayList< RadioButton >();
 			updateList.add( rbRule );
 			updateList.add( rbScoring );
@@ -208,7 +208,8 @@ public class Setup implements ISequence
 
 				if( switched ){	//何かのラジオボタンが切り替わった
 					if( rb == rbRule && rb.getOn() != 2 ){	//切り替わったのが採用ルールのボタンだったら
-						copyRuleBook.numPlayers = numPlayers;
+						//一旦現在の設定を保存する。
+						writeRuleBook( copyRuleBook );
 						switch( rb.getOn() ){
 							case 0:	//オフィシャルルール
 								copyRuleBook.setPresetRule( RuleBook.Preset.OFFICIAL );
@@ -224,7 +225,8 @@ public class Setup implements ISequence
 						rbRule.on( 2 );
 					}
 					if( rb == rbScoring && rb.getOn() != 2 ){	//採点方式についても上記と同様
-						masterRuleBook.numPlayers = numPlayers;
+						//一旦現在の設定を保存する。
+						writeRuleBook( copyRuleBook );
 						switch( rb.getOn() ){
 							case 0:	//オフィシャルルール
 								copyRuleBook.setPresetScoring( RuleBook.Preset.OFFICIAL );

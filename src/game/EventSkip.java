@@ -24,9 +24,12 @@ public class EventSkip implements IEvent
 	@Override
 	public void activate( GameState state )
 	{
-		state.getLogger().setLog( state.getCurrentPlayer().getName() + "「スキップ!!」" );
-		state.getLogger().setLog( state.getNextPlayer().getName() + "の手番が飛ばされます。");
-		state.advanceTurn();
-		state.getLogger().setLog( "次は" + state.getNextPlayer().getName() + "です。" );
+		Player cp = state.getCurrentPlayer();
+		state.getLogger().setLog( cp.getName() + "「スキップ!!」" );
+		if( cp.getNumHands() != 0 ){
+			state.getLogger().setLog( state.getNextPlayer().getName() + "の手番が飛ばされます。");
+			state.advanceTurn();
+			state.getLogger().setLog( "次は" + state.getNextPlayer().getName() + "です。" );
+		}
 	}
 }

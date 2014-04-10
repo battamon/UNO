@@ -25,14 +25,17 @@ public class EventDrawTwo implements IEvent
 	@Override
 	public void activate( GameState state )
 	{
-		//TODO 標準ルールのみ実装。後でローカルルールに対応させよう。
-		Player nextPlayer = state.getNextPlayer();
+		//TODO 標準ルールのみ実装。ローカルルールのドロー系回避に対応させよう。
+		Player cp = state.getCurrentPlayer();
+		Player np = state.getNextPlayer();
 		//2枚引かせる
 		for( int i = 0; i < 2; ++i ){
-			state.drawCard( nextPlayer );
+			state.drawCard( np );
 		}
-		state.getLogger().setLog( state.getCurrentPlayer().getName() + "「ドロー2!!」");
-		state.getLogger().setLog( nextPlayer.getName() + "は2枚引いてターンエンド。" );
-		state.advanceTurn();
+		state.getLogger().setLog( cp.getName() + "「ドロー2!!」");
+		if( cp.getNumHands() != 0 ){	//ゲーム終了時はターン飛ばしをしない
+			state.getLogger().setLog( np.getName() + "は2枚引いてターンエンド。" );
+			state.advanceTurn();
+		}
 	}
 }

@@ -19,6 +19,10 @@ public class EventWild implements IEvent
 	public boolean update( GameState state )
 	{
 		Player p = state.getCurrentPlayer();
+		if( p.getNumHands() == 0 ){	//ゲーム終了時は処理を飛ばす
+			return true;
+		}
+
 		if( p.isUser() ){
 			if( cc == null ){
 				cc = new ChooseColor();
@@ -54,13 +58,19 @@ public class EventWild implements IEvent
 	{
 		Player p = state.getCurrentPlayer();
 		Card.Color selectedColor;
-		if( cc != null ){
-			selectedColor = cc.getSelectedColor();
-			cc = null;
-		}else{
-			selectedColor = p.getAI().chooseColor( state );
+		String say = p.getName() + "「ワイルド!!";
+
+		if( p.getNumHands() != 0 ){
+			if( cc != null ){
+				selectedColor = cc.getSelectedColor();
+				cc = null;
+			}else{
+				selectedColor = p.getAI().chooseColor( state );
+			}
+			state.setValidColor( selectedColor );
+			say += ( "[" + selectedColor + "]" );
 		}
-		state.setValidColor( selectedColor );
-		state.getLogger().setLog( p.getName() + "「ワイルド!![" + selectedColor + "]」" );
+		say += "」";
+		state.getLogger().setLog( say );
 	}
 }

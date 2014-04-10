@@ -29,11 +29,16 @@ public class EventReverse implements IEvent
 	@Override
 	public void activate( GameState state )
 	{
+		Player cp = state.getCurrentPlayer();
+		
 		state.switchOrderDirection();
-		state.getLogger().setLog( state.getCurrentPlayer().getName() + "「リバース!!」" );
-		if( state.getNumPlayers() <= 2 ){
+		state.getLogger().setLog( cp.getName() + "「リバース!!」" );
+		//2人プレイのときは相手が１回休みになる。ゲーム終了時のときはターンを飛ばさない。
+		if( state.getNumPlayers() <= 2 && cp.getNumHands() != 0 ){
 			state.advanceTurn();
 		}
-		state.getLogger().setLog( "次のプレイヤーは" + state.getNextPlayer().getName() + "です。" );
+		if( cp.getNumHands() != 0 ){
+			state.getLogger().setLog( "次のプレイヤーは" + state.getNextPlayer().getName() + "です。" );
+		}
 	}
 }
