@@ -186,6 +186,20 @@ public class Card
 		return 0;
 	}
 
+	/**
+	 * 自分が場に出られるかどうかを返す。
+	 * @param card 場に出ているカード。比較対象。
+	 */
+	public boolean isDiscardable( Color c, char g )
+	{
+		if( color == Card.Color.BLACK	//出すカードが黒
+				|| color == c		//色が同じ
+				|| glyph == g ){	//数字記号が同じ
+			return true;
+		}
+		return false;
+	}
+
 	//デバッグ用？
 	@Override
 	public String toString()

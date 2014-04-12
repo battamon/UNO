@@ -85,6 +85,8 @@ public class GameState
 	private Card.Color prevValidColor;
 	/** イベント。イベント発生中にオブジェクトが代入される。 */
 	private IEvent activeEvent;
+	/** イベント効果の重複カウント */
+	private int eventStackCount;
 	/** ルールブック */
 	private RuleBook ruleBook;
 	/** ゲーム画面に設置する当たり判定の必要なオブジェクト管理 */
@@ -175,6 +177,8 @@ public class GameState
 				if( activeEvent.update( this ) ){
 					activeEvent.activate( this );
 					activeEvent = null;
+					//イベントスタックカウントを初期化
+					eventStackCount = 0;
 					if( p.getNumHands() != 0 ){	//手札が残ってたら続行
 						advanceTurn();
 						phase = Phase.PLAYING;
@@ -409,6 +413,7 @@ public class GameState
 		validColor = Card.Color.BLACK;
 		validGlyph = Card.GLYPH_WILD_DRAW_FOUR;
 		prevValidColor = Card.Color.BLACK;
+		eventStackCount = 0;
 	}
 
 	/**
@@ -514,28 +519,22 @@ public class GameState
 	private boolean playUser( User user )
 	{
 		boolean end = false;
-		//既に選択されている状態のカードがあるなら無作為に取り出して同時出しの比較対象にする
-		Card sample = null;
-		List< Boolean > multiRemovableList = null;
-		MouseHitTestTask visibleHands = user.getVisibleHands();
-		for( int i = 0; i < visibleHands.size(); ++i ){
-			CardUserHand cuh = (CardUserHand)visibleHands.get( i );
-			if( cuh.isSelected() ){
-				sample = cuh.card;
-				break;
-			}
-		}
+		//既に選択されている状態のカードがあるなら最初に選択されたカードを取り出して同時出しの比較対象にする
+		Card sample = user.getFirstSelectedCard();
+
 		//場に出せるカードリストの取得
 		List< Boolean > removableHandsList = user.isRemovableCards( validColor, validGlyph );
 		//既に選択されているカードがあったら、そのカードを基準に同時出し出来るカードリストを取得
+		List< Boolean > multiRemovableList = null;
 		multiRemovableList = user.isRemovableCardsMulti( sample, ruleBook );
 		//手札を出せるかどうか。出せるなら選択処理へ、出せないなら山札から1枚引く。
 		if( user.isPlayable( validColor, validGlyph ) ){
 			//手札のクリック処理。左クリックで選択状態。右クリックで選択解除。
 			int selectedCardIndex = -1;
+			MouseHitTestTask visibleHands = user.getVisibleHands();
 			for( int i = 0; i < visibleHands.size(); ++i ){
 				CardUserHand cuh = (CardUserHand)visibleHands.get( i );
-				if( cuh.isLeftClicked() ){	//左クリック
+				if( cuh.isLeftClicked() ){	//左クリック。カードを選択しようとした。
 					if( removableHandsList.get( i ).booleanValue() || ( multiRemovableList != null && multiRemovableList.get( i ).booleanValue() ) ){	//出せるカードかチェック
 						if( cuh.isSelected() ){
 							end = true;	//既に選択状態のカードをクリックしたら場に出す
@@ -545,8 +544,21 @@ public class GameState
 						}
 					}
 				}
-				if( cuh.isRightClicked() ){
+				if( cuh.isRightClicked() ){	//右クリック。カードを選択解除しようとした。
 					cuh.setSelect( false );
+					user.deselectHand( i );
+					//複数枚選択されていた場合、場に出せる状況かどうか調べる。
+					if( user.getNumSelectedCards() > 0 ){
+						Card firstSelectedCard = user.getFirstSelectedCard();
+						//不整合ならすべての選択フラグを消す
+						if( !firstSelectedCard.isDiscardable( validColor, validGlyph ) ){
+							for( int j = 0; j < visibleHands.size(); ++j ){
+								CardUserHand c = (CardUserHand)visibleHands.get( j );
+								c.setSelect( false );
+							}
+							user.deselectHandsAll();
+						}
+					}
 				}
 			}
 			//何らかのカードが選択された
@@ -574,12 +586,15 @@ public class GameState
 							cuh.setSelect( false );
 						}
 					}
+					//以前に選択されていたカード情報を消す。
+					user.deselectHandsAll();
 				}
+				//選択されたカードをプレイヤーに覚えさせる。
+				user.selectHand( selectedCardIndex );
 			}
 			if( end ){	//手札が選択・決定された
 				//手札のカードを場に出す
-				//FIXME 複数同時出しの場合の、カードを出す順番を直そう
-				//FIXME 複数同時出しの場合の、カードの効果を累積できるようにしよう
+				eventStackCount = user.getNumSelectedCards();
 				setCardToDiscardPile( user.removeSelectedCards() );
 				if( user.getNumHands() == 1 ){
 					logger.setLog( user.getName() + "「UNO!」" );
@@ -616,9 +631,10 @@ public class GameState
 		AI ai = player.getAI();
 		if( !ai.think() ) return false;
 		
-		List< Integer > cards = ai.chooseCardIndecis( this );
-		if( !cards.isEmpty() ){
-			setCardToDiscardPile( player.removeHands( cards ) );
+		//カードを選択する。
+		if( ai.chooseCardsIndices( this ) ){
+			eventStackCount = player.getNumSelectedCards();
+			setCardToDiscardPile( player.removeSelectedHands() );
 			if( player.getNumHands() == 1 ){
 				logger.setLog( player.getName() + "「UNO!」" );
 			}
@@ -799,5 +815,10 @@ public class GameState
 	public RuleBook getRuleBook()
 	{
 		return ruleBook;
+	}
+
+	public int getEventStackCount()
+	{
+		return eventStackCount;
 	}
 }

@@ -122,27 +122,14 @@ public class User extends Player
 	 */
 	public List< Card > removeSelectedCards()
 	{
-		List< Integer > selects = new ArrayList< Integer >();
-		int handsIndex = 0;
-		MouseHitTestTask vHands = new MouseHitTestTask();
-		for( int i = 0; i < visibleHands.size(); ++i ){
-			CardUserHand cuh = (CardUserHand)visibleHands.get( i );
-			if( cuh.isSelected() ){
-				//選択されているカードなら手札から取り除き、カードは戻り値用変数に入れる。
-				selects.add( Integer.valueOf( handsIndex ) );
-			}else{
-				//選択されていないなら新しいvisibleHands変数(vHands)に移し変える。
-				vHands.add( cuh );
-				//手札用のインデックスは取り除かれない限り進める。
-				++handsIndex;
-			}
-		}
-		//現状の手札に合わせたvisibleHandsに更新
-		visibleHands = vHands;
+		//選択されているカードを取り除く
+		List< Card > ret = removeSelectedHands();
+		//visibleHandsを最新の情報に更新
+		recreateVisibleHands();
 		//手札のカード位置を調整
 		adjustUserHandsPosition();
-		//選んだカードを取り除く
-		return removeHands( selects );
+		
+		return ret;
 	}
 
 	/**

@@ -28,13 +28,16 @@ public class EventDrawTwo implements IEvent
 		//TODO 標準ルールのみ実装。ローカルルールのドロー系回避に対応させよう。
 		Player cp = state.getCurrentPlayer();
 		Player np = state.getNextPlayer();
-		//2枚引かせる
-		for( int i = 0; i < 2; ++i ){
+		//2 * n枚引かせる
+		int stackCount = state.getEventStackCount();
+		int drawCount = stackCount * 2;
+		for( int i = 0; i < drawCount; ++i ){
 			state.drawCard( np );
 		}
-		state.getLogger().setLog( cp.getName() + "「ドロー2!!」");
+		String text = cp.getName() + "「ドロー2" + ( stackCount > 1 ? ( "x" + stackCount ) : "" ) + "!!」";
+		state.getLogger().setLog( text );
 		if( cp.getNumHands() != 0 ){	//ゲーム終了時はターン飛ばしをしない
-			state.getLogger().setLog( np.getName() + "は2枚引いてターンエンド。" );
+			state.getLogger().setLog( np.getName() + "は" + drawCount + "枚引いてターンエンド。" );
 			state.advanceTurn();
 		}
 	}

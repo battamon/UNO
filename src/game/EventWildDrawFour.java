@@ -83,7 +83,9 @@ public class EventWildDrawFour implements IEvent
 					if( state.getRuleBook().challenge == RuleBook.RuleFlag.WITH ){
 						phase = Phase.SELECT_CHALLENGE;
 					}
-					state.getLogger().setLog( state.getCurrentPlayer().getName() + "「ワイルドドロー4!![" + selectedColor + "]」" );
+					int stackCount = state.getEventStackCount();
+					String text = cp.getName() + "「ワイルドドロー4" + ( stackCount > 1 ? ( "x" + stackCount ) : "" ) + "!![" + selectedColor + "]」";
+					state.getLogger().setLog( text );
 					//ローカルルール。チャレンジ制度がないならupdate()の役目を終える。
 					if( state.getRuleBook().challenge == RuleBook.RuleFlag.WITHOUT ){
 						return true;
@@ -174,36 +176,39 @@ public class EventWildDrawFour implements IEvent
 	{
 		Player cp = state.getCurrentPlayer();
 		Player np = state.getNextPlayer();
+		int stackCount = state.getEventStackCount();
+		int drawCount = stackCount * 4;
 
 		if( cp.getNumHands() != 0 ){
 			if( challenge ){	//チャレンジした時の処理
 				if( success ){	//チャレンジ成功
 					cp.obtainCard( state.takeBackCard() );	//WildDrawFourカードを手札に戻して
-					for( int i = 0; i < 4; ++i ){
-						state.drawCard( cp );	//4枚引ひかせる
+					for( int i = 0; i < drawCount; ++i ){
+						state.drawCard( cp );
 					}
 						state.getLogger().setLog( cp.getName() + "は出したカードを" );
-						state.getLogger().setLog( "手札に戻し、更に4枚引きます。" );
+						state.getLogger().setLog( "手札に戻し、更に" + drawCount + "枚引きます。" );
 				}else{	//チャレンジ失敗
-					for( int i = 0; i < 6; ++i ){
-						state.drawCard( np );	//6枚引かせる
+					drawCount += ( drawCount / 2 );	//ペナルティは1.5倍( stackCount == 1 なら6枚 )
+					for( int i = 0; i < drawCount; ++i ){
+						state.drawCard( np );
 					}
 					state.setValidColor( selectedColor );
 					state.advanceTurn();
-					state.getLogger().setLog( np.getName() + "はペナルティとして6枚ひきます。" );
+					state.getLogger().setLog( np.getName() + "はペナルティとして" + drawCount + "枚ひきます。" );
 				}
 			}else{
-				for( int i = 0; i < 4; ++i ){
-					state.drawCard( np );	//4枚引かせる
+				for( int i = 0; i < drawCount; ++i ){
+					state.drawCard( np );	//drawCount枚引かせる
 				}
 				state.setValidColor( selectedColor );
 				state.advanceTurn();
-				state.getLogger().setLog( np.getName() + "は4枚引いてターン終了。" );
+				state.getLogger().setLog( np.getName() + "は" + drawCount + "枚引いてターン終了。" );
 			}
 			init = false;
 		}else{
-			//ゲーム終了時は４枚引かせて終了
-			for( int i = 0; i < 4; ++i ){
+			//ゲーム終了時はdrawCount枚引かせて終了
+			for( int i = 0; i < drawCount; ++i ){
 				state.drawCard( np );
 			}
 		}

@@ -30,9 +30,15 @@ public class EventReverse implements IEvent
 	public void activate( GameState state )
 	{
 		Player cp = state.getCurrentPlayer();
-		
-		state.switchOrderDirection();
-		state.getLogger().setLog( cp.getName() + "「リバース!!」" );
+		int stackCount = state.getEventStackCount();
+
+		//奇数枚のときは通常効果。偶数枚のときは実質効果なし。
+		if( stackCount % 2 != 0 ){
+			state.switchOrderDirection();
+		}
+		String text = cp.getName() + "「リバース" + ( stackCount > 1 ? ( "x" + stackCount ) : "" ) + "!!」";
+
+		state.getLogger().setLog( text );
 		//2人プレイのときは相手が１回休みになる。ゲーム終了時のときはターンを飛ばさない。
 		if( state.getNumPlayers() <= 2 && cp.getNumHands() != 0 ){
 			state.advanceTurn();

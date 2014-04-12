@@ -25,10 +25,13 @@ public class EventSkip implements IEvent
 	public void activate( GameState state )
 	{
 		Player cp = state.getCurrentPlayer();
-		state.getLogger().setLog( cp.getName() + "「スキップ!!」" );
+		int stackCount = state.getEventStackCount();
+		String text = cp.getName() + "「スキップ" + ( stackCount > 1 ? ( "x" + stackCount ) : "" ) + "!!」";
+		state.getLogger().setLog( text );
 		if( cp.getNumHands() != 0 ){
-			state.getLogger().setLog( state.getNextPlayer().getName() + "の手番が飛ばされます。");
-			state.advanceTurn();
+			for( int i = 0; i < stackCount * 2 - 1; ++i ){
+				state.advanceTurn();	//(n枚 * 2 - 1 )回ターンを進める
+			}
 			state.getLogger().setLog( "次は" + state.getNextPlayer().getName() + "です。" );
 		}
 	}

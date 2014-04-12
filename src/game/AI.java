@@ -45,9 +45,8 @@ public class AI
 	 * @param s ゲーム本体オブジェクト
 	 * @return 選択された(複数の)カードのインデックスを返す。カード自体は手札から取り除かれない。
 	 */
-	public List< Integer > chooseCardIndecis( GameState s )
+	public boolean chooseCardsIndices( GameState s )
 	{
-		//TODO カードを1枚選んで返す。複数出せるローカルルールに対応させよう。
 		List< Boolean > removableHandsList = player.isRemovableCards( s.getCurrentValidColor(), s.getCurrentValidGlyph() );
 		List< Integer > validIndices = new ArrayList< Integer >();
 		for( int i = 0; i < removableHandsList.size(); ++i ){
@@ -56,12 +55,22 @@ public class AI
 			}
 		}
 		if( validIndices.isEmpty() ){
-			return new ArrayList< Integer >();	//選択できなかったら空のリストを返す
+			return false;	//選択可能なカードが無い。
 		}
-		int selectedIndex = (int)( Math.random() * validIndices.size() );
-		List< Integer > selectedCardIndecis = new ArrayList< Integer >();
-		selectedCardIndecis.add( validIndices.get( Integer.valueOf( selectedIndex ) ) );
-		return selectedCardIndecis;
+		//カードを１枚選んで、それが複数枚出せるなら出せるだけ出す。
+		int selectedValidIndex = validIndices.get( (int)( Math.random() * validIndices.size() ) );
+		Card selectedCard = player.hands.get( selectedValidIndex );
+		List< Integer > selects = new ArrayList< Integer >();
+		List< Boolean > multi = player.isRemovableCardsMulti( selectedCard, s.getRuleBook() );
+		for( int i = 0; i < multi.size(); ++i ){
+			if( multi.get( i ).booleanValue() ){
+				selects.add( Integer.valueOf( i ) );
+			}
+		}
+		for( int i = 0; i < selects.size(); ++i ){
+			player.selectHand( selects.get( i ).intValue() );	//カードを選ぶ。
+		}
+		return true;
 	}
 
 	/**

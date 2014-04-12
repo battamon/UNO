@@ -26,6 +26,7 @@ public interface IEvent
 	 * 効果を発揮するときこのメソッドを呼び出す。<br>
 	 * ゲームの状態を変化させるので、ゲーム本体クラス(State)のオブジェクトを引数にとる。
 	 * @param state ゲーム本体クラスのオブジェクト
+	 * @param stackCount 効果が発動するときの場に出されたカード枚数
 	 */
 	public abstract void activate( GameState state );
 }

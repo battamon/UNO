@@ -47,6 +47,8 @@ public class Player
 	private int rank;
 	/** 意思決定クラス(AI) */
 	protected AI ai;
+	/** 選択された手札 */
+	private List< Card >selectedHands;
 
 	/** 情報画面位置 */
 	private Rectangle infoRect;
@@ -66,6 +68,7 @@ public class Player
 		infoRect.height = INFO_HEIGHT;
 		handPositions = new ArrayList< Point >();
 		ai = new AI( this );
+		selectedHands = new ArrayList< Card >();
 	}
 
 	public void update()
@@ -148,9 +151,7 @@ public class Player
 		for( int i = 0; i < hands.size(); ++i ){
 			Card card = hands.get( i );
 			//出せるパターンならremovablesにtrueをセット
-			if( card.color == Card.Color.BLACK	//出すカードが黒
-					|| card.color == color		//色が同じ
-					|| card.glyph == glyph ){	//数字記号が同じ
+			if( card.isDiscardable( color, glyph ) ){
 				removables.set( i, Boolean.TRUE );
 				continue;
 			}
@@ -163,8 +164,8 @@ public class Player
 	/**
 	 * 既に選択されているカードから同時出し出来るカードがあるかどうか調べる。
 	 * @param sample 基準となるカード
-	 * @param RuleBook ルール設定フラグ群
-	 * @return 出せるかどうかを示すリスト
+	 * @param rb ルール設定フラグ群
+	 * @return 出せるかどうかを示すリスト。手札と同じサイズのリストが返る。
 	 */
 	public List< Boolean > isRemovableCardsMulti( Card sample, RuleBook rb )
 	{
@@ -188,18 +189,19 @@ public class Player
 	}
 
 	/**
-	 * カードを出す
-	 * @param index 手札のインデックス
+	 * 選択されたカードを出す
 	 * @return 指定されたカード
 	 */
-	public List< Card > removeHands( List< Integer > selectedCardIndecis )
+	public List< Card > removeSelectedHands()
 	{
 		List< Card > cards = new ArrayList< Card >();
-		for( Integer i : selectedCardIndecis ){
-			cards.add( hands.remove( i.intValue() ) );
+		for( Card card : selectedHands ){
+			cards.add( card );	//選択されているカードリストのコピーを作って
+			hands.remove( card );	//手札からは取り除く
 		}
-		adjustPlayerHandsPosition();
-		return cards;
+		deselectHandsAll();	//選択リストを全消去
+		adjustPlayerHandsPosition();	//表示手札の位置調整して
+		return cards;	//カードリストを返す
 	}
 
 	/**
@@ -317,6 +319,53 @@ public class Player
 	public AI getAI()
 	{
 		return ai;
+	}
+
+	/**
+	 *  手札を選択する。
+	 * @param index 手札を示すインデックス
+	 */
+	public void selectHand( int index )
+	{
+		selectedHands.add( hands.get( Integer.valueOf( index ) ) );
+	}
+
+	/**
+	 * 手札の選択を解除する。
+	 * @param index 手札を示すインデックス
+	 */
+	public void deselectHand( int index )
+	{
+		Card card = hands.get( index );
+		selectedHands.remove( card );
+	}
+
+	/**
+	 * 手札の選択状態をすべて解除。
+	 */
+	public void deselectHandsAll()
+	{
+		selectedHands.clear();
+	}
+
+	/**
+	 * 最初に選択されたカードを返す。<br>
+	 * 選択されていなければnullを返す。
+	 */
+	public Card getFirstSelectedCard()
+	{
+		if( !selectedHands.isEmpty() ){
+			return selectedHands.get( 0 );
+		}
+		return null;
+	}
+
+	/**
+	 * 現在選択されているカードの枚数を返す。
+	 */
+	public int getNumSelectedCards()
+	{
+		return selectedHands.size();
 	}
 
 	//デバッグ用
