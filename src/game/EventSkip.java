@@ -25,7 +25,7 @@ public class EventSkip implements IEvent
 	public void activate( GameState state )
 	{
 		Player cp = state.getCurrentPlayer();
-		int stackCount = state.getEventStackCount();
+		int stackCount = state.getDiscardCount();
 		String text = cp.getName() + "「スキップ" + ( stackCount > 1 ? ( "x" + stackCount ) : "" ) + "!!」";
 		state.getLogger().setLog( text );
 		if( cp.getNumHands() != 0 ){

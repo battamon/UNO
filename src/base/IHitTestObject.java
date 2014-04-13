@@ -12,7 +12,7 @@ public interface IHitTestObject
 {
 	/**
 	 * 当たり判定を行う
-	 * @param point 当たり判定を行う対象の座標
+	 * @param pos 当たり判定を行う対象の座標
 	 * @return 当たり判定に成功するとtrue、失敗するとfalseを返す
 	 */
 	public abstract boolean hitTest( Point pos );

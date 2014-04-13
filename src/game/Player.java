@@ -132,7 +132,7 @@ public class Player
 	 */
 	public boolean isPlayable( Card.Color color, char glyph )
 	{
-		List< Boolean > removables = isRemovableCards( color, glyph );
+		List< Boolean > removables = getRemovableCardList( color, glyph );
 		for( Boolean b : removables ){
 			if( b.booleanValue() ) return true;
 		}
@@ -145,7 +145,7 @@ public class Player
 	 * @param glyph 捨て場に見えているカード文字
 	 * @return 出せるかどうかを示すリスト
 	 */
-	public List< Boolean > isRemovableCards( Card.Color color, char glyph )
+	public List< Boolean > getRemovableCardList( Card.Color color, char glyph )
 	{
 		List< Boolean > removables = Arrays.asList( new Boolean[ hands.size() ] );
 		for( int i = 0; i < hands.size(); ++i ){
@@ -167,7 +167,7 @@ public class Player
 	 * @param rb ルール設定フラグ群
 	 * @return 出せるかどうかを示すリスト。手札と同じサイズのリストが返る。
 	 */
-	public List< Boolean > isRemovableCardsMulti( Card sample, RuleBook rb )
+	public List< Boolean > getRemovableCardsMulti( Card sample, RuleBook rb )
 	{
 		List< Boolean > removableList = Arrays.asList( new Boolean[ hands.size() ] );
 		for( int i = 0; i < hands.size(); ++i ){
@@ -182,6 +182,8 @@ public class Player
 					if( rb.discardMultipleCondition == RuleBook.RuleFlag.NUMBER_AND_COLOR && card.color != sample.color ){	//カード色も一致させる必要があるが、実際は不一致だった場合
 						removableList.set( i, Boolean.FALSE );
 					}
+				}else if( card.color == sample.color && card.glyph == sample.glyph ){
+					removableList.set( i, Boolean.TRUE );
 				}
 			}
 		}
@@ -366,6 +368,42 @@ public class Player
 	public int getNumSelectedCards()
 	{
 		return selectedHands.size();
+	}
+
+	/**
+	 * ドロー回避可能かどうか判定する。
+	 * @param glyph 会費の基準となるカード文字
+	 * @return ドロー回避可能ならtrue。
+	 */
+	public boolean isAvoidableDraw( char glyph )
+	{
+		List< Boolean > list = getAvoidableDrawCardList( glyph );
+		for( Boolean b : list ){
+			if( b.booleanValue() ){
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * ドロー回避可能なカードの可否のリストを取得する。
+	 * @param glyph	回避の基準となるカード文字
+	 * @return ドロー回避可能なカードの可否のリスト。
+	 */
+	public List< Boolean > getAvoidableDrawCardList( char glyph )
+	{
+		List< Boolean > ret = Arrays.asList( new Boolean[ hands.size() ] );
+		for( int i = 0; i < hands.size(); ++i ){
+			Card card = hands.get( i );
+			if( card.glyph == Card.GLYPH_WILD_DRAW_FOUR 	//ワイルドドロー4なら回避可能
+					|| ( glyph == 'd' && card.glyph == 'd' ) ){	//場のカードがドロー2ならドロー2でも回避可能
+				ret.set( i, Boolean.TRUE );
+			}else{
+				ret.set( i, Boolean.FALSE );
+			}
+		}
+		return ret;
 	}
 
 	//デバッグ用

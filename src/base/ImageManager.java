@@ -22,7 +22,7 @@ import javax.imageio.ImageIO;
  */
 public class ImageManager
 {
-	/** 位置調整指定enum */
+	/** 位置調整指定 */
 	public enum Align{
 		DEFAULT,
 		CENTER,
@@ -209,7 +209,7 @@ public class ImageManager
 	 * @param y 描画範囲の原点座標y
 	 * @param w 描画範囲の幅
 	 * @param h 描画範囲の高さ
-	 * @param colAlign 描画範囲におけるx軸方向の位置
+	 * @param align 描画範囲におけるx軸方向の位置
 	 */
 	public static void drawString( Graphics g, String text, int x, int y, int w, int h, Align align )
 	{

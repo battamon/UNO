@@ -159,7 +159,6 @@ public class Card
 
 	/**
 	 * 表裏を指定して画像ハンドルを取得する。
-	 * @param surface カードの向き
 	 * @return カード画像のイメージハンドル。
 	 */
 	public static int getCardBackImageHandle()
@@ -189,6 +188,7 @@ public class Card
 	/**
 	 * 自分が場に出られるかどうかを返す。
 	 * @param card 場に出ているカード。比較対象。
+	 * @return 場に出せるカードならtrue。
 	 */
 	public boolean isDiscardable( Color c, char g )
 	{

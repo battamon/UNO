@@ -40,6 +40,7 @@ public class User extends Player
 			visibleHands.hitTest();
 			visibleHands.update();
 		}
+
 	}
 
 	@Override
@@ -51,7 +52,7 @@ public class User extends Player
 		for( int i = visibleHands.size() - 1; i >= 0; --i ){
 			CardUserHand c = (CardUserHand)visibleHands.get( i );
 			boolean dark = false;
-			if( removableCardFlags != null && !removableCardFlags.get( i ).booleanValue() ){
+			if( removableCardFlags != null && i < removableCardFlags.size() && !removableCardFlags.get( i ).booleanValue() ){
 				dark = true;	//選択できないカードは色を落とす。
 				if( removableMultiFlags != null && removableMultiFlags.size() == removableCardFlags.size() ){	//サイズが合わなかったらmulti側のデータが古いので参照しない
 					if( removableMultiFlags.get( i ).booleanValue() ){
@@ -90,24 +91,48 @@ public class User extends Player
 		}
 	}
 
+	/**
+	 * 手持ちのカードが1枚以上出せるかどうかを返す
+	 * @return 出せるならtrue
+	 */
+	@Override
+	public boolean isPlayable( Card.Color color, char glyph )
+	{
+		//このメソッドを呼び出してもremovableCardFlagsに影響を与えないようにする。
+		List< Boolean > prev = removableCardFlags;
+		boolean ret = super.isPlayable( color, glyph );
+		removableCardFlags = prev;
+		return ret;
+	}
+
+
 	/** 出せるカードフラグを描画用にフィールドとして保持しておく */
 	@Override
-	public List< Boolean > isRemovableCards( Card.Color color, char glyph )
+	public List< Boolean > getRemovableCardList( Card.Color color, char glyph )
 	{
-		removableCardFlags = super.isRemovableCards( color, glyph );
+		removableCardFlags = super.getRemovableCardList( color, glyph );
 		return removableCardFlags;
 	}
 
 	/** 同時出し可能カードフラグも描画用にフィールドとして保持しておく */
 	@Override
-	public List< Boolean > isRemovableCardsMulti( Card sample, RuleBook rb )
+	public List< Boolean > getRemovableCardsMulti( Card sample, RuleBook rb )
 	{
 		if( sample != null ){
-			removableMultiFlags = super.isRemovableCardsMulti( sample, rb );
+			removableMultiFlags = super.getRemovableCardsMulti( sample, rb );
 		}else{
 			removableMultiFlags = null;
 		}
 		return removableMultiFlags;
+	}
+
+	/** getRemovableCardListメソッドに同様 */
+	@Override
+	public List< Boolean > getAvoidableDrawCardList( char glyph )
+	{
+		removableCardFlags = super.getAvoidableDrawCardList( glyph );
+		removableMultiFlags = removableCardFlags;	//multiと同期を取っておく
+		return removableCardFlags;
 	}
 
 	/** 不必要になった出せるカードフラグ情報を消す */

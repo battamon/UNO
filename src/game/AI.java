@@ -47,7 +47,12 @@ public class AI
 	 */
 	public boolean chooseCardsIndices( GameState s )
 	{
-		List< Boolean > removableHandsList = player.isRemovableCards( s.getCurrentValidColor(), s.getCurrentValidGlyph() );
+		List< Boolean > removableHandsList;
+		if( !s.getAvoidDrawFlag() ){	//通常時とドロー回避中で取得するリストを変える。
+			removableHandsList = player.getRemovableCardList( s.getCurrentValidColor(), s.getCurrentValidGlyph() );
+		}else{
+			removableHandsList = player.getAvoidableDrawCardList( s.getCurrentValidGlyph() );
+		}
 		List< Integer > validIndices = new ArrayList< Integer >();
 		for( int i = 0; i < removableHandsList.size(); ++i ){
 			if( removableHandsList.get( i ).booleanValue() ){
@@ -61,7 +66,7 @@ public class AI
 		int selectedValidIndex = validIndices.get( (int)( Math.random() * validIndices.size() ) );
 		Card selectedCard = player.hands.get( selectedValidIndex );
 		List< Integer > selects = new ArrayList< Integer >();
-		List< Boolean > multi = player.isRemovableCardsMulti( selectedCard, s.getRuleBook() );
+		List< Boolean > multi = player.getRemovableCardsMulti( selectedCard, s.getRuleBook() );
 		for( int i = 0; i < multi.size(); ++i ){
 			if( multi.get( i ).booleanValue() ){
 				selects.add( Integer.valueOf( i ) );
@@ -91,5 +96,15 @@ public class AI
 	public boolean triesChallenge()
 	{
 		return (int)( Math.random() * 2 ) == 0 ? false : true;
+	}
+
+	/**
+	 * ドロー回避行動に出るかどうか判断する。
+	 * @return ドロー回避するならtrueが返る。
+	 */
+	public boolean decideAvoidDraw()
+	{
+		//基本的に回避行動に出ることにする。
+		return true;
 	}
 }

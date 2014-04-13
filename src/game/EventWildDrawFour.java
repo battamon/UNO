@@ -22,9 +22,12 @@ public class EventWildDrawFour implements IEvent
 	private enum Phase
 	{
 		CHOOSE_COLOR,
+		SELECT_AVOID,
 		SELECT_CHALLENGE,
 		CHALLENGE,
 	}
+	/** カードを引かせる枚数 */
+	private static final int PENALTY_DRAW = 4;
 
 	/** 色選択画面クラス */
 	private ChooseColor cc = null;
@@ -44,6 +47,8 @@ public class EventWildDrawFour implements IEvent
 	private boolean success = false;
 	/** チャレンジウィンドウが出るまでのインターバルカウント */
 	private int count = 0;
+	/** ドロー回避ウィンドウ */
+	private AvoidDrawWindow ad = null;
 
 	/**
 	 * 色選択画面を出してユーザーに選ばせる。<br>
@@ -79,13 +84,53 @@ public class EventWildDrawFour implements IEvent
 				}
 				if( chosen ){
 					cc = null;
+					int stackCount = state.getDiscardCount();
+					String text = cp.getName() + "「ワイルドドロー4" + ( stackCount > 1 ? ( "x" + stackCount ) : "" ) + "!![" + selectedColor + "]」";
+					state.getLogger().setLog( text );
+					phase = Phase.SELECT_AVOID;
+				}
+				break;
+			}
+			case SELECT_AVOID:
+			{
+				int stackCount = state.getDiscardCount();
+				//ローカルルール。ドロー回避ルールが設定されていて、効果を受けるプレイヤーに回避手段がある場合
+				if( state.getRuleBook().avoidDraw == RuleBook.RuleFlag.WITH && np.isAvoidableDraw( state.getCurrentValidGlyph() ) ){
+					if( np.isUser() ){	//効果を受けるプレイヤーがユーザーのとき
+						if( ad == null ){
+							ad = new AvoidDrawWindow();
+						}
+						ad.update();
+						AvoidDrawWindow.Pushed pushed = ad.getButtonPushed();
+						if( pushed != AvoidDrawWindow.Pushed.NOT_PUSHED ){	//何らかのボタンが押された
+							if( pushed == AvoidDrawWindow.Pushed.YES ){
+								state.stackPenaltyDrawCount( PENALTY_DRAW * stackCount );	//YESボタンならドロー回避宣言
+								ad = null;
+								phase = Phase.CHOOSE_COLOR;	//次のプレイヤーが対抗でワイルドドロー4を出したときの備え
+								return true;	//ドロー回避が確定した時点で処理を打ち切る。
+							}
+							if( pushed == AvoidDrawWindow.Pushed.NO ){
+								state.resetAvoidDrawFlag();
+								ad = null;
+								phase = Phase.SELECT_CHALLENGE;	//ドロー回避しないならチャレンジフェイズへ。
+							}
+						}
+					}else{	//効果を受けるプレイヤーがNPCのとき
+						if( np.getAI().decideAvoidDraw() ){
+							//AIがドロー回避すると判断した場合
+							state.stackPenaltyDrawCount( PENALTY_DRAW * stackCount );
+							phase = Phase.CHOOSE_COLOR;	//次のプレイヤーが対抗でワイルドドロー4を出したときの備え
+							return true;	//ドロー回避が確定した時点で処理を打ち切る。
+						}else{
+							state.resetAvoidDrawFlag();
+							phase = Phase.SELECT_CHALLENGE;	//ドロー回避しないならチャレンジフェイズへ。
+						}
+					}
+				}else{
 					//標準ルール。チャレンジ制度があるならチャレンジ選択フェイズへ。
 					if( state.getRuleBook().challenge == RuleBook.RuleFlag.WITH ){
 						phase = Phase.SELECT_CHALLENGE;
 					}
-					int stackCount = state.getEventStackCount();
-					String text = cp.getName() + "「ワイルドドロー4" + ( stackCount > 1 ? ( "x" + stackCount ) : "" ) + "!![" + selectedColor + "]」";
-					state.getLogger().setLog( text );
 					//ローカルルール。チャレンジ制度がないならupdate()の役目を終える。
 					if( state.getRuleBook().challenge == RuleBook.RuleFlag.WITHOUT ){
 						return true;
@@ -94,6 +139,11 @@ public class EventWildDrawFour implements IEvent
 				break;
 			}
 			case SELECT_CHALLENGE:	//チャレンジ決定フェイズ
+				//ワイルドドロー4がドロー回避のために出されたものならチャレンジは無し
+				if( state.getAvoidDrawFlag() ){
+					state.resetAvoidDrawFlag();
+					return true;
+				}
 				if( np.isUser() ){	//ユーザーがチャレンジの権利を持っているとき
 					if( ch == null ){
 						++count;	//ウィンドウを出すまで少し時間をおく
@@ -163,6 +213,9 @@ public class EventWildDrawFour implements IEvent
 		if( ch != null ){
 			ch.draw( g );
 		}
+		if( ad != null ){
+			ad.draw( g );
+		}
 	}
 
 	@Override
@@ -176,8 +229,8 @@ public class EventWildDrawFour implements IEvent
 	{
 		Player cp = state.getCurrentPlayer();
 		Player np = state.getNextPlayer();
-		int stackCount = state.getEventStackCount();
-		int drawCount = stackCount * 4;
+		int stackCount = state.getDiscardCount();
+		int drawCount = stackCount * PENALTY_DRAW + state.retrievePenaltyDrawCount();
 
 		if( cp.getNumHands() != 0 ){
 			if( challenge ){	//チャレンジした時の処理
@@ -225,6 +278,7 @@ public class EventWildDrawFour implements IEvent
 		judged = false;
 		success = false;
 		count = 0;
+		ad = null;
 	}
 }
 

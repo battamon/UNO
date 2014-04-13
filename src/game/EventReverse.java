@@ -30,7 +30,7 @@ public class EventReverse implements IEvent
 	public void activate( GameState state )
 	{
 		Player cp = state.getCurrentPlayer();
-		int stackCount = state.getEventStackCount();
+		int stackCount = state.getDiscardCount();
 
 		//奇数枚のときは通常効果。偶数枚のときは実質効果なし。
 		if( stackCount % 2 != 0 ){

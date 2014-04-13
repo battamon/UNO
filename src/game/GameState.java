@@ -85,14 +85,18 @@ public class GameState
 	private Card.Color prevValidColor;
 	/** イベント。イベント発生中にオブジェクトが代入される。 */
 	private IEvent activeEvent;
-	/** イベント効果の重複カウント */
-	private int eventStackCount;
 	/** ルールブック */
 	private RuleBook ruleBook;
 	/** ゲーム画面に設置する当たり判定の必要なオブジェクト管理 */
 	private MouseHitTestTask hitTestTask;
 	/** 画面上に設置する山札 */
 	private CardVisible deckVisible;
+	/** 直前のプレイで出したカード枚数 */
+	private int discardCount;
+	/** ローカルルール。ドロー回避フラグ */
+	private boolean avoidDrawFlag;
+	/** ドロー回避時に蓄積されていくドロー枚数 */
+	private int penaltyDrawCount;
 
 	//ここからメソッド
 	static
@@ -134,6 +138,7 @@ public class GameState
 				//場札を決める
 				if( setFirstDiscardPile() ){
 					activeEvent = discardPile.peek().event;
+					discardCount = 1;	//山札から直接場に出るパターンなので値を直接設定
 					phase = Phase.EVENT;
 				}else{
 					phase = Phase.PLAYING;
@@ -175,10 +180,11 @@ public class GameState
 				}
 				//イベントを呼び出す。イベントが確定したらactivateして効果を発動。
 				if( activeEvent.update( this ) ){
-					activeEvent.activate( this );
-					activeEvent = null;
-					//イベントスタックカウントを初期化
-					eventStackCount = 0;
+					//ローカルルールのドロー回避をしないもしくはプレイヤーの手札がなくなったらイベント発動
+					if( !avoidDrawFlag || p.getNumHands() == 0 ){
+						activeEvent.activate( this );
+						activeEvent = null;
+					}
 					if( p.getNumHands() != 0 ){	//手札が残ってたら続行
 						advanceTurn();
 						phase = Phase.PLAYING;
@@ -413,7 +419,9 @@ public class GameState
 		validColor = Card.Color.BLACK;
 		validGlyph = Card.GLYPH_WILD_DRAW_FOUR;
 		prevValidColor = Card.Color.BLACK;
-		eventStackCount = 0;
+		discardCount = 0;
+		avoidDrawFlag = false;
+		penaltyDrawCount = 0;
 	}
 
 	/**
@@ -523,10 +531,15 @@ public class GameState
 		Card sample = user.getFirstSelectedCard();
 
 		//場に出せるカードリストの取得
-		List< Boolean > removableHandsList = user.isRemovableCards( validColor, validGlyph );
+		List< Boolean > removableHandsList = null;
+		if( avoidDrawFlag ){	//ドロー回避時の選択可能な手札
+			removableHandsList = user.getAvoidableDrawCardList( validGlyph );
+		}else{	//通常時の選択可能な手札
+			removableHandsList = user.getRemovableCardList( validColor, validGlyph );
+		}
 		//既に選択されているカードがあったら、そのカードを基準に同時出し出来るカードリストを取得
 		List< Boolean > multiRemovableList = null;
-		multiRemovableList = user.isRemovableCardsMulti( sample, ruleBook );
+		multiRemovableList = user.getRemovableCardsMulti( sample, ruleBook );
 		//手札を出せるかどうか。出せるなら選択処理へ、出せないなら山札から1枚引く。
 		if( user.isPlayable( validColor, validGlyph ) ){
 			//手札のクリック処理。左クリックで選択状態。右クリックで選択解除。
@@ -594,7 +607,7 @@ public class GameState
 			}
 			if( end ){	//手札が選択・決定された
 				//手札のカードを場に出す
-				eventStackCount = user.getNumSelectedCards();
+				discardCount = user.getNumSelectedCards();
 				setCardToDiscardPile( user.removeSelectedCards() );
 				if( user.getNumHands() == 1 ){
 					logger.setLog( user.getName() + "「UNO!」" );
@@ -633,7 +646,7 @@ public class GameState
 		
 		//カードを選択する。
 		if( ai.chooseCardsIndices( this ) ){
-			eventStackCount = player.getNumSelectedCards();
+			discardCount = player.getNumSelectedCards();
 			setCardToDiscardPile( player.removeSelectedHands() );
 			if( player.getNumHands() == 1 ){
 				logger.setLog( player.getName() + "「UNO!」" );
@@ -817,8 +830,36 @@ public class GameState
 		return ruleBook;
 	}
 
-	public int getEventStackCount()
+	/** イベントの蓄積数を取得する */
+	public int getDiscardCount()
 	{
-		return eventStackCount;
+		return discardCount;
+	}
+
+	/** ドロー回避フラグを立てる */
+	public void stackPenaltyDrawCount( int addDrawCount )
+	{
+		avoidDrawFlag = true;
+		penaltyDrawCount += addDrawCount;
+	}
+
+	/** ドロー回避フラグを消す */
+	public void resetAvoidDrawFlag()
+	{
+		avoidDrawFlag = false;
+	}
+
+	/** ドロー回避フラグを取得する */
+	public boolean getAvoidDrawFlag()
+	{
+		return avoidDrawFlag;
+	}
+
+	/** これまで蓄積されたドロー枚数を取り出す */
+	public int retrievePenaltyDrawCount()
+	{
+		int ret = penaltyDrawCount;
+		penaltyDrawCount = 0;
+		return ret;
 	}
 }
