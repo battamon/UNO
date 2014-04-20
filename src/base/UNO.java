@@ -10,12 +10,15 @@ import javax.swing.JFrame;
  */
 public class UNO extends JFrame
 {
+	/** パネルの実体。外部のクラスがコンポーネントを利用するために公開しておく。 */
+	public static MainPanel panel;
+
 	public UNO()
 	{
 		//タイトルバーの設定
 		setTitle( "UNO" );
 		//パネルの生成
-		MainPanel panel = new MainPanel();
+		panel = new MainPanel();
 		getContentPane().add( panel );
 		//ウィンドウサイズの固定
 		setResizable( false );

@@ -159,4 +159,10 @@ public class MainPanel extends JPanel implements Runnable
 			e.printStackTrace();
 		}
 	}
+
+	@Override
+	protected void paintComponent( Graphics g )
+	{
+		//内部で呼び出される描画関数はオーバーライドして殺しておく
+	}
 }

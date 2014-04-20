@@ -11,6 +11,7 @@ public class RuleBook
 	public enum Preset{
 		OFFICIAL,
 		JAPAN,
+		MIX,
 	}
 	/** 設定群 */
 	public enum RuleFlag{
@@ -48,6 +49,14 @@ public class RuleBook
 	public RuleFlag scoringSystem;
 	/** プレイヤー人数 */
 	public int numPlayers;
+	/** 採点方式・スコア制 */
+	public int score;
+	/** 採点方式・ラウンド制 */
+	public int round;
+	/** 採点方式・混合(スコア) */
+	public int mixScore;
+	/** 採点方式・混合(ラウンド) */
+	public int mixRound;
 
 	public RuleBook()
 	{
@@ -61,6 +70,7 @@ public class RuleBook
 		scoring = RuleFlag.OFFICIAL;
 		scoringSystem = RuleFlag.SCORE;
 		numPlayers = 2;
+		score = 500;
 	}
 
 	public RuleBook( RuleBook rb )
@@ -75,6 +85,10 @@ public class RuleBook
 		scoring = rb.scoring;
 		scoringSystem = rb.scoringSystem;
 		numPlayers = rb.numPlayers;
+		score = rb.score;
+		round = rb.round;
+		mixScore = rb.mixScore;
+		mixRound = rb.mixRound;
 	}
 
 	public void setPresetRule( Preset set )
@@ -107,10 +121,26 @@ public class RuleBook
 			case OFFICIAL:
 				scoring = RuleFlag.OFFICIAL;
 				scoringSystem = RuleFlag.SCORE;
+				score = 500;
+				round = 0;
+				mixScore = 0;
+				mixRound = 0;
 				break;
 			case JAPAN:
 				scoring = RuleFlag.JAPAN;
 				scoringSystem = RuleFlag.ROUND;
+				score = 0;
+				round = 5;
+				mixScore = 0;
+				mixRound = 0;
+				break;
+			case MIX:
+				scoring = RuleFlag.MIX;
+				scoringSystem = RuleFlag.MIX;
+				score = 0;
+				round = 0;
+				mixScore = 500;
+				mixRound = 5;
 				break;
 		}
 	}

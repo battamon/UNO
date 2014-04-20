@@ -170,7 +170,7 @@ public class GameState
 				Player p = getCurrentPlayer();
 				//ローカルルール。役上がりペナルティが有効な場合の処理。
 				if( p.getNumHands() == 0 && ruleBook.penalty == RuleBook.RuleFlag.WITH ){
-					//ペナルティありならn枚引かせる TODO ペナルティの枚数は設定で指定できるようにする？
+					//ペナルティありなら2枚引かせる
 					int numDraw = 2;
 					for( int i = 0; i < numDraw; ++i ){
 						p.drawCard( deck );
@@ -820,8 +820,21 @@ public class GameState
 	/** ゲーム終了かどうかを返す */
 	public boolean isEndOfTheMatch()
 	{
-		//TODO トップの得点が500点を越えたら終了。ローカルルールはこの限りでない。
-		return players.get( rankIndices.get( 0 ).intValue() ).getScore() >= 500;
+		//既定の終了条件を取得
+		int scoreLimit = ruleBook.score;
+		int roundLimit = ruleBook.round;
+		if( ruleBook.scoringSystem == RuleBook.RuleFlag.MIX ){
+			scoreLimit = ruleBook.mixScore;
+			scoreLimit = ruleBook.mixRound;
+		}
+		boolean end = false;
+		if( scoreLimit > 0 ){	//スコア制が採用されている場合
+			end |= players.get( rankIndices.get( 0 ).intValue() ).getScore() >= scoreLimit;
+		}
+		if( roundLimit > 0 ){	//ラウンド制が採用されている場合
+			end |= gameCount >= roundLimit;
+		}
+		return end;
 	}
 
 	/** ルールブックを取得する */

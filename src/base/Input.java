@@ -95,7 +95,6 @@ public class Input implements KeyListener, MouseListener, MouseMotionListener
 		for( int i = 0; i < NUM_KEYS; ++i ){
 			if( last.keys[ i ] ){
 				++keyCount[ i ];
-				System.out.println( keyCount[ i ] );
 			}else{
 				keyCount[ i ] = 0;
 			}

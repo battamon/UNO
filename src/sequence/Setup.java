@@ -4,6 +4,7 @@ import game.RuleBook;
 import game.RuleBook.RuleFlag;
 
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Point;
@@ -14,11 +15,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.JTextField;
+
 import base.Button;
 import base.ISequence;
 import base.ImageManager;
+import base.MainPanel;
 import base.MouseHitTestTask;
 import base.RadioButton;
+import base.TextBox;
+import base.UNO;
 
 /**
  * ローカルルールなどを設定するシーケンス
@@ -71,6 +77,11 @@ public class Setup implements ISequence
 	private static final Point RB_IMAGE_POS = new Point( 2, 2 );
 	/** 参加人数の描画位置 */
 	private static final Rectangle NUM_PLAYERS_AREA = new Rectangle( 494, 364, 28, ROW_HEIGHT );
+	/** 入力欄領域 */
+	private static final Rectangle TEXT_BOX_AREA_SCORE = new Rectangle( 263, 351, 76, 22 );
+	private static final Rectangle TEXT_BOX_AREA_ROUND = new Rectangle( 263, 375, 76, 22 );
+	private static final Rectangle TEXT_BOX_AREA_MIX_SCORE = new Rectangle( 263, 399, 76, 22 );
+	private static final Rectangle TEXT_BOX_AREA_MIX_ROUND = new Rectangle( 263, 423, 76, 22 );
 
 	/** 画像ハンドル */
 	private static int hSetupImage = ImageManager.NO_HANDLE;
@@ -83,8 +94,8 @@ public class Setup implements ISequence
 	private Button buttonUp = null;
 	/** 決定・戻るボタン用当たり判定タスク */
 	protected MouseHitTestTask taskReturn = null;
-	/** 人数変更用当たり判定タスク */
-	private MouseHitTestTask taskChangeNumPlayers = null;
+	/** 人数変更・入力欄用当たり判定タスク */
+	private MouseHitTestTask taskChangePlayerCount = null;
 	/** ラジオボタン群 */
 	private RadioButton rbRule;
 	private RadioButton rbRuleDeckDraw;
@@ -105,6 +116,13 @@ public class Setup implements ISequence
 	private RuleBook copyRuleBook;
 	/** 変更可能フラグ */
 	protected boolean changeable;
+	/** 入力欄群 */
+	protected TextBox textBoxScore;
+	protected TextBox textBoxRound;
+	protected TextBox textBoxMixScore;
+	protected TextBox textBoxMixRound;
+	/** 入力欄タスク */
+	private MouseHitTestTask taskTextBoxes;
 
 	public Setup( RuleBook ruleBook )
 	{
@@ -122,9 +140,9 @@ public class Setup implements ISequence
 		buttonDown.setImageHandle( ImageManager.readImage( "resource/image/button_left_triangle.png" ) );
 		buttonUp = new Button( BUTTON_UP_AREA );
 		buttonUp.setImageHandle( ImageManager.readImage( "resource/image/button_right_triangle.png" ) );
-		taskChangeNumPlayers = new MouseHitTestTask();
-		taskChangeNumPlayers.add( buttonDown );
-		taskChangeNumPlayers.add( buttonUp );
+		taskChangePlayerCount = new MouseHitTestTask();
+		taskChangePlayerCount.add( buttonDown );
+		taskChangePlayerCount.add( buttonUp );
 		//各ラジオボタン
 		rbRule = new RadioButton();
 		rbRule.addButton( RB_RULE_AREA_OFFICIAL, RB_IMAGE_POS );
@@ -162,6 +180,16 @@ public class Setup implements ISequence
 		rbTree.put( rbRule, Arrays.asList( rbRuleDeckDraw, rbRulePenalty, rbRuleChallenge, rbRuleAvoidDraw, rbRuleDiscardMultiple ) );
 		rbTree.put( rbRuleDiscardMultiple, Arrays.asList( rbRuleDiscardMultibleCondition ) );
 		rbTree.put( rbScoring, Arrays.asList( rbScoringSystem ) );
+		//入力欄
+		textBoxScore = new TextBox( TEXT_BOX_AREA_SCORE );
+		textBoxRound = new TextBox( TEXT_BOX_AREA_ROUND );
+		textBoxMixScore = new TextBox( TEXT_BOX_AREA_MIX_SCORE );
+		textBoxMixRound = new TextBox( TEXT_BOX_AREA_MIX_ROUND );
+		taskTextBoxes = new MouseHitTestTask();
+		taskTextBoxes.add( textBoxScore );
+		taskTextBoxes.add( textBoxRound );
+		taskTextBoxes.add( textBoxMixScore );
+		taskTextBoxes.add( textBoxMixRound );
 		//ルールの読み込み
 		readRuleBook( masterRuleBook );
 	}
@@ -175,8 +203,9 @@ public class Setup implements ISequence
 
 		//設定の変更が可能なときの処理
 		if( changeable ){
-			taskChangeNumPlayers.hitTest();
-			taskChangeNumPlayers.update();
+			//人数変更周り
+			taskChangePlayerCount.hitTest();
+			taskChangePlayerCount.update();
 			if( buttonDown.isClicked() ){	//人数を減らす
 				--numPlayers;
 				if( numPlayers < 2 ){	//下限は2人
@@ -189,6 +218,9 @@ public class Setup implements ISequence
 					numPlayers = 10;
 				}
 			}
+			//入力欄周り
+			taskTextBoxes.hitTest();
+			taskTextBoxes.update();
 			//ラジオボタン更新。ツリー構造になっているので幅優先探索で更新している。
 			List< RadioButton > updateList = new ArrayList< RadioButton >();
 			updateList.add( rbRule );
@@ -227,6 +259,11 @@ public class Setup implements ISequence
 					if( rb == rbScoring && rb.getOn() != 2 ){	//採点方式についても上記と同様
 						//一旦現在の設定を保存する。
 						writeRuleBook( copyRuleBook );
+						//入力欄は一旦無効に
+						textBoxScore.setEditable( false );
+						textBoxRound.setEditable( false );
+						textBoxMixScore.setEditable( false );
+						textBoxMixRound.setEditable( false );
 						switch( rb.getOn() ){
 							case 0:	//オフィシャルルール
 								copyRuleBook.setPresetScoring( RuleBook.Preset.OFFICIAL );
@@ -234,6 +271,19 @@ public class Setup implements ISequence
 							case 1:	//日本ルール
 								copyRuleBook.setPresetScoring( RuleBook.Preset.JAPAN );
 								break;
+							case 2:	//カスタム
+								switch( rbScoringSystem.getOn() ){
+									case 0:	//スコア制
+										textBoxScore.setEditable( true );
+										break;
+									case 1:	//ラウンド制
+										textBoxRound.setEditable( true );
+										break;
+									case 2:	//混合
+										textBoxMixScore.setEditable( true );
+										textBoxMixRound.setEditable( true );
+										break;
+								}
 						}
 						//ラジオボタンをプリセットルールに合わせる
 						readRuleBook( copyRuleBook );
@@ -243,12 +293,42 @@ public class Setup implements ISequence
 					}
 				}
 			}
+			//入力が有効なテキストボックスを決める
+			int valid = -1;
+			if( rbScoring.getOn() == 2 ){
+				valid = rbScoringSystem.getOn();
+			}
+			for( int i = 0; i < 3; ++i ){
+				boolean editable = i == valid;
+				switch( i ){
+					case 0:
+						textBoxScore.setEditable( editable );
+						break;
+					case 1:
+						textBoxRound.setEditable( editable );
+						break;
+					case 2:
+						textBoxMixScore.setEditable( editable );
+						textBoxMixRound.setEditable( editable );
+						break;
+				}
+			}
 		}
 
 		//シーケンス遷移
 		int next = RootParent.NEXT_SEQUENCE_DEFAULT;
 		if( buttonReturn.isClicked() ){
 			writeRuleBook( masterRuleBook );
+			//採点方式が未入力だったらデフォルトの方式にしておく
+			if( masterRuleBook.scoringSystem == RuleBook.RuleFlag.SCORE && masterRuleBook.score == 0 ){
+				masterRuleBook.setPresetScoring( RuleBook.Preset.OFFICIAL );
+			}
+			if( masterRuleBook.scoringSystem == RuleBook.RuleFlag.ROUND && masterRuleBook.round == 0 ){
+				masterRuleBook.setPresetScoring( RuleBook.Preset.JAPAN );
+			}
+			if( masterRuleBook.scoringSystem == RuleBook.RuleFlag.MIX && masterRuleBook.mixScore == 0 && masterRuleBook.mixRound == 0 ){
+				masterRuleBook.setPresetScoring( RuleBook.Preset.MIX );
+			}
 			next = RootParent.NEXT_SEQUENCE_TITLE;
 		}
 		return next;
@@ -266,9 +346,9 @@ public class Setup implements ISequence
 		g.setFont( new Font( prevFont.getName(), Font.PLAIN, 32 ) );
 		ImageManager.drawString( g, changeable ? "決　定" : "戻　る", BUTTON_RETURN_AREA, ImageManager.Align.CENTER, ImageManager.Align.CENTER );
 		taskReturn.draw( g );
-		//人数変更ボタン描画
+		//人数変更ボタン・入力欄描画
 		if( changeable ){
-			taskChangeNumPlayers.draw( g );
+			taskChangePlayerCount.draw( g );
 		}
 		//ラジオボタン描画
 		List< RadioButton > drawList = new ArrayList< RadioButton >();
@@ -299,6 +379,8 @@ public class Setup implements ISequence
 		g.setColor( Color.BLACK );
 		g.setFont( new Font( prevFont.getName(), Font.PLAIN, 14 ) );
 		ImageManager.drawString( g, numPlayers + "", NUM_PLAYERS_AREA.x, NUM_PLAYERS_AREA.y, NUM_PLAYERS_AREA.width, NUM_PLAYERS_AREA.height, ImageManager.Align.RIGHT );
+		//入力欄
+		taskTextBoxes.draw( g );
 		//後処理
 		g.setFont( prevFont );
 		g.setColor( prevColor );
@@ -308,6 +390,10 @@ public class Setup implements ISequence
 	public void destroy()
 	{
 		taskReturn.removeAll();
+		textBoxScore.destroy();
+		textBoxRound.destroy();
+		textBoxMixScore.destroy();
+		textBoxMixRound.destroy();
 	}
 
 	private void readRuleBook( RuleBook ruleBook )
@@ -353,6 +439,26 @@ public class Setup implements ISequence
 			case ROUND: rbScoringSystem.on( 1 ); break;
 			case MIX:   rbScoringSystem.on( 2 ); break;
 		}
+		if( ruleBook.score != 0 ){
+			textBoxScore.setText( String.valueOf( ruleBook.score ) );
+		}else{
+			textBoxScore.setText( "" );
+		}
+		if( ruleBook.round != 0 ){
+			textBoxRound.setText( String.valueOf( ruleBook.round ) );
+		}else{
+			textBoxRound.setText( "" );
+		}
+		if( ruleBook.mixScore != 0 ){
+			textBoxMixScore.setText( String.valueOf( ruleBook.mixScore ) );
+		}else{
+			textBoxMixScore.setText( "" );
+		}
+		if( ruleBook.mixRound != 0 ){
+			textBoxMixRound.setText( String.valueOf( ruleBook.mixRound ) );
+		}else{
+			textBoxMixRound.setText( "" );
+		}
 	}
 
 	private void writeRuleBook( RuleBook ruleBook )
@@ -393,10 +499,37 @@ public class Setup implements ISequence
 			case 1: ruleBook.scoring = RuleFlag.JAPAN; break;
 			case 2: ruleBook.scoring = RuleFlag.CUSTOM; break;
 		}
+		ruleBook.score = 0;
+		ruleBook.round = 0;
+		ruleBook.mixScore = 0;
+		ruleBook.mixRound = 0;
+		String str = null;
 		switch( rbScoringSystem.getOn() ){
-			case 0: ruleBook.scoringSystem = RuleFlag.SCORE; break;
-			case 1: ruleBook.scoringSystem = RuleFlag.ROUND; break;
-			case 2: ruleBook.scoringSystem = RuleFlag.MIX; break;
+			case 0:
+				ruleBook.scoringSystem = RuleFlag.SCORE;
+				str = textBoxScore.getText();
+				if( str != null && !str.equals( "" ) ){
+					ruleBook.score = Integer.valueOf( str );
+				}
+				break;
+			case 1:
+				ruleBook.scoringSystem = RuleFlag.ROUND;
+				str = textBoxRound.getText();
+				if( str != null && !str.equals( "" ) ){
+					ruleBook.round = Integer.valueOf( str );
+				}
+				break;
+			case 2:
+				ruleBook.scoringSystem = RuleFlag.MIX;
+				str = textBoxMixScore.getText();
+				if( str != null && !str.equals( "" ) ){
+					ruleBook.mixScore = Integer.valueOf( str );
+				}
+				str = textBoxMixRound.getText();
+				if( str != null && !str.equals( "" ) ){
+					ruleBook.mixRound = Integer.valueOf( str );
+				}
+				break;
 		}
 	}
 
@@ -417,5 +550,4 @@ public class Setup implements ISequence
 		}
 		return false;
 	}
-
 }
